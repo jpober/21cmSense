@@ -1,4 +1,4 @@
-#! /usr/local/bin python
+#! /usr/bin/env python
 '''
 Calculates the expected sensitivity of a 21cm experiment to a given 21cm power spectrum.  Requires as input an array .npz file created with mk_array_file.py.
 '''
@@ -6,15 +6,15 @@ import aipy as a, numpy as n, pylab as p, optparse, sys, capo as C
 from scipy import interpolate
 
 o = optparse.OptionParser()
-o.set_usage('sense_calc.py [options] *.npz')
+o.set_usage('calc_sense.py [options] *.npz')
 o.set_description(__doc__)
-o.add_option('-m', '--model', dest='model', default='mod', type=string,
+o.add_option('-m', '--model', dest='model', default='mod',
     help="The model of the foreground wedge to use.  Three options are 'pess' (all k modes inside horizon + buffer are excluded, and all baselines are added incoherently), 'mod' (all k modes inside horizon + buffer are excluded, but all baselines within a uv pixel are added coherently), and 'opt' (all modes k modes inside the primary field of view are excluded).  See Pober et al. 2014 for more details.")
-o.add_option('-b', '--buffer', dest='buffer', default=0.1, type=float,
+o.add_option('-b', '--buff', dest='buff', default=0.1, type=float,
     help="The size of the additive buffer outside the horizon to exclude in the pessimistic and moderate models.")
 o.add_option('-f', '--freq', dest='freq', default=.150, type=float,
     help="The center frequency of the observation in GHz.  If you change from the default, be sure to use a sensible power spectrum model from that redshift.")
-o.add_option('--eor', --dest='eor', default='ps_no_halos_nf0.521457_z9.50_useTs0_zetaX-1.0e+00_200_400Mpc_v2', type=string,
+o.add_option('--eor', dest='eor', default='ps_no_halos_nf0.521457_z9.50_useTs0_zetaX-1.0e+00_200_400Mpc_v2',
     help="The model epoch of reionization power spectrum.  The code is built to handle output power spectra from 21cmFAST.")
 
 opts, args = o.parse_args(sys.argv[1:])
@@ -24,7 +24,7 @@ opts, args = o.parse_args(sys.argv[1:])
 #Load in data from array file; see mk_array_file.py for definitions of the parameters
 array = n.load(args[0])
 name = array['name']
-n_lstbins = array['n_lstbins']
+obs_duration = array['obs_duration']
 dish_size_in_lambda = array['dish_size_in_lambda']
 Trx = array['Trx']
 t_int = array['t_int']
@@ -33,18 +33,20 @@ if opts.model == 'pess':
 else:
     uv_coverage = array['uv_coverage']
 
-first_null = 1.22/dish_size_in_lambda #for an airy disk, even though beam model is Gaussian
-bm = 1.13*(2.35*(0.45/dish_size_in_lambda))**2
-nchan = int((B)*1024)
-kpls = C.pspec.dk_deta(z) * n.fft.fftfreq(nchan,B/nchan)
-
 h = 0.7
 B = .008 #largest bandwidth allowed by "cosmological evolution", i.e., the maximum line of sight volume over which the universe can be considered co-eval
 z = C.pspec.f2z(opts.freq)
 
-Tsky = 60e3 * (3e8/(fq*1e9))**2.55  # sky temperature in mK
+dish_size_in_lambda = dish_size_in_lambda*(opts.freq/.150) # linear frequency evolution, relative to 150 MHz
+first_null = 1.22/dish_size_in_lambda #for an airy disk, even though beam model is Gaussian
+bm = 1.13*(2.35*(0.45/dish_size_in_lambda))**2
+nchan = int((B/.1)*1024) #assumes 100 MHz of bandwidth are cut into 1024 channels
+kpls = C.pspec.dk_deta(z) * n.fft.fftfreq(nchan,B/nchan)
+
+size_cold_patch = 6. #how many hours of right ascension make for good EoR observing?
+Tsky = 60e3 * (3e8/(opts.freq*1e9))**2.55  # sky temperature in mK
 NDAYS = 180
-dish_size_in_lambda = dish_size_in_lambda*(opts.fq/.150) # linear frequency evolution
+n_lstbins = size_cold_patch*60./obs_duration
 
 #===============================EOR MODEL===================================
 
@@ -78,21 +80,22 @@ SIZE = uv_coverage.shape[0]
 
 # Cut unnecessary data out of uv coverage
 # Get rid of auto-correlations
-d[SIZE/2,SIZE/2] = 0
+uv_coverage[SIZE/2,SIZE/2] = 0
 # Cut out 1/2 uv plane (not statistically independent)
-d[:,:SIZE/2] = 0
-d[SIZE/2:,SIZE/2] = 0
+uv_coverage[:,:SIZE/2] = 0
+uv_coverage[SIZE/2:,SIZE/2] = 0
 
 #loop over uv_coverage to calculate k_pr
-nonzero = n.where(d > 0)
+nonzero = n.where(uv_coverage > 0)
 for iu,iv in zip(nonzero[1], nonzero[0]):
    u, v = (iu - SIZE/2) * dish_size_in_lambda, (iv - SIZE/2) * dish_size_in_lambda
    umag = n.sqrt(u**2 + v**2)
    kpr = umag * C.pspec.dk_du(z)
    kprs.append(kpr)
    #calculate horizon limit for baseline of length umag
-   if opts.model in ['mid','pess']: hor = C.pspec.dk_deta(z) * umag/fq + buffer
-   if model in ['opt']: hor = C.pspec.dk_deta(z) * (umag/fq)*n.sin(first_null/2)
+   if opts.model in ['mod','pess']: hor = C.pspec.dk_deta(z) * umag/opts.freq + opts.buff
+   elif opts.model in ['opt']: hor = C.pspec.dk_deta(z) * (umag/opts.freq)*n.sin(first_null/2)
+   else: print '%s is not a valid foreground model; Aborting...' % opts.model; sys.exit()
    if not sense.has_key(kpr): 
        sense[kpr] = n.zeros_like(kpls)
        Tsense[kpr] = n.zeros_like(kpls)
@@ -138,7 +141,7 @@ for ind,kbin in enumerate(sense1d):
     Tsense1d[ind] = Tsense1d[ind]**-.5
 
 #save results to output npz
-n.savez('%s_%s_%.3f.npz' % (name,opts.model,fq),ks=kmag,errs=sense1d,T_errs=Tsense1d)
+n.savez('%s_%s_%.3f.npz' % (name,opts.model,opts.freq),ks=kmag,errs=sense1d,T_errs=Tsense1d)
 
 #calculate significance with least-squares fit of amplitude
 A = p21(kmag)

@@ -49,7 +49,7 @@ class AntennaArray(a.pol.AntennaArray):
                 self.array_params['uv_max'] = n.ceil(n.max(bl_lens)) #longest baseline
         return self.array_params
 
-#Set antenna positions here
+#Set antenna positions here; for regular arrays like Hera we can use an algorithm; otherwise antpos should just be a list of [x,y,z] coords in light-nanoseconds
 nside = 7. #hex number
 L = 1400 / a.const.len_ns 
 dL = 1212 / a.const.len_ns #close packed hex

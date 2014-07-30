@@ -5,15 +5,9 @@ import aipy as a, numpy as n, pylab as p
 import optparse, sys
 
 o = optparse.OptionParser()
+o.set_usage('mk_array_file.py -C [calfile]')
 a.scripting.add_standard_options(o,cal=True)
-
 opts, args = o.parse_args(sys.argv[1:])
-
-if array == 'hera':
-    obs_duration = 40. # minutes
-    dish_size_in_lambda = 7 #simple lambda/D
-    SIZE = 600 #uv plane size in wavelengths
-    sigma = 1/(2*n.pi*0.0643)
 
 #============================SIMPLE GRIDDING FUNCTION=======================
 
@@ -29,28 +23,37 @@ def beamgridder(xcen,ycen,size):
         beam[round(ycen),round(xcen)] = 1. #single pixel gridder
         return beam
 
+#==============================READ ARRAY PARAMETERS=========================
+
+#load cal file
+aa = a.cal.get_aa(opts.cal,n.array([.150]))
+nants = len(aa)
+prms = aa.get_arr_params()
+name = prms['name']; print name
+obs_duration = prms['obs_duration']
+uv_max = prms['uv_max']
+dish_size_in_lambda = prms['dish_size_in_lambda']
+
 #==========================FIDUCIAL OBSERVATION PARAMETERS===================
 
 #while poor form to hard code these to arbitrary values, they have very little effect on the end result
 
 #observing time
+t_int = 60. #how many seconds a single visibility has integrated
 cen_jd = 2454600.90911
-start_jd = cen_jd - (1./24)*((obs_duration/60)/2)
-end_jd = cen_jd + (1./24)*(((obs_duration-1)/60)/2)
-times = n.arange(start_jd,end_jd,(1./24/60))
+start_jd = cen_jd - (1./24)*((obs_duration/t_int)/2)
+end_jd = cen_jd + (1./24)*(((obs_duration-1)/t_int)/2)
+times = n.arange(start_jd,end_jd,(1./24/t_int))
 print 'Observation duration:', start_jd, end_jd
 
 fq = .150 #all calculations in calc_sense.py are relative to 150 MHz
 
 #================================MAIN CODE===================================
 
-#load array information
-aa = a.cal.get_aa(opts.cal,n.array([.150]))
-cat = a.src.get_catalog(opts.cal,'z') #create zenith source object
-nants = len(aa)
-
 cnt = 0
 uvbins = {}
+
+cat = a.src.get_catalog(opts.cal,'z') #create zenith source object
 aa.set_jultime(cen_jd)
 obs_lst = aa.sidereal_time()
 obs_zen = a.phs.RadioFixedBody(obs_lst,aa.lat)
@@ -69,7 +72,7 @@ for i in xrange(nants):
 print 'There are %i baseline types' % len(uvbins.keys())
 
 #grid each baseline type into uv plane
-dim = n.round(lambda_max/dish_size_in_lambda/2)*2 - 1 # round to nearest odd
+dim = n.round(uv_max/dish_size_in_lambda/2)*2 - 1 # round to nearest odd
 uvplane = {}
 uvsum,quadsum = n.zeros((dim,dim)), n.zeros((dim,dim)) #quadsum adds all non-instantaneously-redundant baselines incoherently
 for cnt, uvbin in enumerate(uvbins):
@@ -84,7 +87,7 @@ for cnt, uvbin in enumerate(uvbins):
         i, j = bl.split(',')
         i, j = int(i), int(j)
         u,v,w = aa.gen_uvw(i,j,src=obs_zen)
-        _beam = beamgridder(sigma=sigma/dish_size_in_lambda,xcen=u/dish_size_in_lambda,ycen=v/dish_size_in_lambda,size=dim)
+        _beam = beamgridder(xcen=u/dish_size_in_lambda,ycen=v/dish_size_in_lambda,size=dim)
         uvplane[uvbin] += nbls*_beam
         uvsum += nbls*_beam
     quadsum += (uvplane[uvbin])**2
@@ -93,4 +96,12 @@ quadsum = quadsum**.5
 uvplane['sum'] = uvsum
 uvplane['quadsum'] = quadsum
 
-n.savez('%s_arrayfile.npz' % name,sum=uvplane['sum'],quadsum=uvplane['quadsum'])
+n.savez('%s_arrayfile.npz' % name,
+uv_coverage = uvplane['sum'],
+uv_coverage_pess = uvplane['quadsum'],
+name = name,
+obs_duration = obs_duration,
+dish_size_in_lambda = dish_size_in_lambda,
+Trx = prms['Trx'],
+t_int = t_int,
+)
