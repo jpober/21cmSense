@@ -1,0 +1,29 @@
+This is 21cmSense, a python package for calculating the expected sensitivities of 21cm experiments to the Epoch of Reionization power spectrum.  For details of the observing strategy assumed by this code, and other relevant scientific information, please see Pober et al. 2013AJ....145...65P and Pober et al. 2014ApJ...782...66P. 
+
+Developer: Jonathan Pober (jpober <at> uw <dot> edu).
+
+===============================================================================
+
+Dependencies:
+
+numpy
+scipy
+aipy (https://github.com/AaronParsons/aipy)
+capo (https://github.com/dannyjacobs/capo)
+The capo dependencies are very simple cosmological conversion routines (e.g. MHz to Mpc along the line-of-sight).  If there is enough interest, I can natively add these functions to remove the capo dependency.
+
+===============================================================================
+
+There are two main code pieces: mk_array_file.py and calc_sense.py.  The array files produced by mk_array_file are the inputs to calc_sense.py.  The inputs to mk_array_file.py are calibration files, which are also python scripts, but not executable.  Each of these components will be described in turn.
+
+Calibration Files:
+
+These files will contain all the information about the array you are trying to calculate sensitivities for.  Most importantly, they contain the positions of all the antennas, but also information about the antenna size and system temperature.  An example calibration file for use with this package has been included: hera127.py.  To modify for other arrays, you should only need to change the values in the "ARRAY SPECIFIC PARAMETERS" section.
+
+mk_array_file.py:
+
+This code takes calibration files as input (note that when calling a calibration file from the command line, one needs to omit the '.py' on the end), and returns a .npz file that can be read by calc_sense.py.  As it stands, this code should require no user modification even for any antenna array.
+
+calc_sense.py: 
+
+This is the main portion of the package.  To run with defaults, it should only need an array file as input.  Through the command line, the user can change the foreground avoidance/subtraction model, the observing frequency, the epoch of reionization model (which is required to calculate sample variance), and the total observing time.   A redshift 9.5 ~50% ionization model produced by 21cmFAST has been included.  The code can natively handle any power spectrum output from 21cmFAST, but should be easily modifiable to include other models.  Since the calculated sensitivities are for a single frequency, one should change the observing frequency if one uses a power spectrum from a redshift other than the default (z = 9.5).  Changing more detailed parameters, like the sky temperature model, will require editing of the code itself.
