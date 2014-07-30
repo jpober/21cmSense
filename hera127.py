@@ -49,6 +49,8 @@ class AntennaArray(a.pol.AntennaArray):
                 self.array_params['uv_max'] = n.ceil(n.max(bl_lens)) #longest baseline
         return self.array_params
 
+#===========================ARRAY SPECIFIC PARAMETERS==========================
+
 #Set antenna positions here; for regular arrays like Hera we can use an algorithm; otherwise antpos should just be a list of [x,y,z] coords in light-nanoseconds
 nside = 7. #hex number
 L = 1400 / a.const.len_ns 
@@ -72,13 +74,15 @@ prms = {
     'Trx': 1e5 #receiver temp in mK
 }
 
+#=======================END ARRAY SPECIFIC PARAMETERS==========================
+
 def get_aa(freqs):
     '''Return the AntennaArray to be used for simulation.'''
     location = prms['loc']
     antennas = []
     nants = len(prms['antpos'])
     for i in range(nants):
-        beam = prms['beam'](freqs, xwidth=(0.45/prms['dish_size_in_lambda']), ywidth=(0.45/prms['dish_size_in_lambda'])) #as it stands, the size of the beam as defined here is not used in the sensitivity calculation
+        beam = prms['beam'](freqs, xwidth=(0.45/prms['dish_size_in_lambda']), ywidth=(0.45/prms['dish_size_in_lambda'])) #as it stands, the size of the beam as defined here is not actually used in the sensitivity calculation
         antennas.append(a.fit.Antenna(0, 0, 0, beam))
     aa = AntennaArray(prms['loc'], antennas)
     p = {}

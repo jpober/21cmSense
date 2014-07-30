@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 '''
 Creates an array file for use by calc_sense.py.  The main product is the uv coverage produced by the array during the time it takes the sky to drift through the primary beam; other array parameters are also saved.  Array specific information comes from an aipy cal file.'''
-import aipy as a, numpy as n, pylab as p
+import aipy as a, numpy as n
 import optparse, sys
 
 o = optparse.OptionParser()

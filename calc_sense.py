@@ -2,7 +2,7 @@
 '''
 Calculates the expected sensitivity of a 21cm experiment to a given 21cm power spectrum.  Requires as input an array .npz file created with mk_array_file.py.
 '''
-import aipy as a, numpy as n, pylab as p, optparse, sys, capo as C
+import aipy as a, numpy as n, optparse, sys, capo as C
 from scipy import interpolate
 
 o = optparse.OptionParser()
@@ -12,10 +12,14 @@ o.add_option('-m', '--model', dest='model', default='mod',
     help="The model of the foreground wedge to use.  Three options are 'pess' (all k modes inside horizon + buffer are excluded, and all baselines are added incoherently), 'mod' (all k modes inside horizon + buffer are excluded, but all baselines within a uv pixel are added coherently), and 'opt' (all modes k modes inside the primary field of view are excluded).  See Pober et al. 2014 for more details.")
 o.add_option('-b', '--buff', dest='buff', default=0.1, type=float,
     help="The size of the additive buffer outside the horizon to exclude in the pessimistic and moderate models.")
-o.add_option('-f', '--freq', dest='freq', default=.150, type=float,
-    help="The center frequency of the observation in GHz.  If you change from the default, be sure to use a sensible power spectrum model from that redshift.")
+o.add_option('-f', '--freq', dest='freq', default=.135, type=float,
+    help="The center frequency of the observation in GHz.  If you change from the default, be sure to use a sensible power spectrum model from that redshift.  Note that many values in the code are calculated relative to .150 GHz and are not affected by changing this value.")
 o.add_option('--eor', dest='eor', default='ps_no_halos_nf0.521457_z9.50_useTs0_zetaX-1.0e+00_200_400Mpc_v2',
     help="The model epoch of reionization power spectrum.  The code is built to handle output power spectra from 21cmFAST.")
+o.add_option('--ndays', dest='ndays', default=180., type=float,
+    help="The total number of days observed.  The default is 180, which is the maximum a particular R.A. can be observed in one year if one only observes at night.  The total observing time is ndays*n_per_day")
+o.add_option('--n_per_day', dest='n_per_day', default=6., type=float.=,
+    help="The number of good observing hours per day.  This corresponds to the size of a low-foreground region in right ascension for a drift scanning instrument.  The total observing time is ndays*n_per_day")
 
 opts, args = o.parse_args(sys.argv[1:])
 
@@ -43,10 +47,8 @@ bm = 1.13*(2.35*(0.45/dish_size_in_lambda))**2
 nchan = int((B/.1)*1024) #assumes 100 MHz of bandwidth are cut into 1024 channels
 kpls = C.pspec.dk_deta(z) * n.fft.fftfreq(nchan,B/nchan)
 
-size_cold_patch = 6. #how many hours of right ascension make for good EoR observing?
 Tsky = 60e3 * (3e8/(opts.freq*1e9))**2.55  # sky temperature in mK
-NDAYS = 180
-n_lstbins = size_cold_patch*60./obs_duration
+n_lstbins = opts.n_per_day*60./obs_duration
 
 #===============================EOR MODEL===================================
 
@@ -106,7 +108,7 @@ for iu,iv in zip(nonzero[1], nonzero[0]):
        if k < min(mk): continue
        #don't include values beyond the interpolation range (no sensitivity anyway)
        if k > n.max(mk): continue
-       tot_integration = uv_coverage[iv,iu] * NDAYS
+       tot_integration = uv_coverage[iv,iu] * opts.ndays
        delta21 = p21(k)
        Tsys = Tsky + Trx
        bm2 = bm/2. #beam^2 term calculated for Gaussian; see Parsons et al. 2014
