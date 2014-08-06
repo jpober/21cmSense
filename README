@@ -16,7 +16,7 @@ The capo dependencies are very simple cosmological conversion routines (e.g. MHz
 
 There are two main code pieces: mk_array_file.py and calc_sense.py.  The array files produced by mk_array_file are the inputs to calc_sense.py.  The inputs to mk_array_file.py are calibration files, which are also python scripts, but not executable.  Each of these components will be described in turn.
 
-Calibration Files:
+calibration files:
 
 These files will contain all the information about the array you are trying to calculate sensitivities for.  Most importantly, they contain the positions of all the antennas, but also information about the antenna size and system temperature.  An example calibration file for use with this package has been included: hera127.py.  To modify for other arrays, you should only need to change the values in the "ARRAY SPECIFIC PARAMETERS" section.
 
@@ -27,3 +27,5 @@ This code takes calibration files as input (note that when calling a calibration
 calc_sense.py: 
 
 This is the main portion of the package.  To run with defaults, it should only need an array file as input.  Through the command line, the user can change the foreground avoidance/subtraction model, the observing frequency, the epoch of reionization model (which is required to calculate sample variance), and the total observing time.   A redshift 9.5 ~50% ionization model produced by 21cmFAST has been included.  The code can natively handle any power spectrum output from 21cmFAST, but should be easily modifiable to include other models.  Since the calculated sensitivities are for a single frequency, one should change the observing frequency if one uses a power spectrum from a redshift other than the default (z = 9.5).  Changing more detailed parameters, like the sky temperature model, will require editing of the code itself.
+
+Questions, comments, or feedback should be directed to jpober <at> uw <dot> edu.

@@ -46,7 +46,7 @@ end_jd = cen_jd + (1./24)*(((obs_duration-1)/t_int)/2)
 times = n.arange(start_jd,end_jd,(1./24/t_int))
 print 'Observation duration:', start_jd, end_jd
 
-fq = .150 #all calculations in calc_sense.py are relative to 150 MHz
+fq = .150 #all calculations in calc_sense.py are relative to a fiducial 150 MHz; changing this parameter will not change your observing band, but rather break the scaling relations in calc_sense.  to change your observing band, use the command line option in calc_sense.
 
 #================================MAIN CODE===================================
 

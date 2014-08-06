@@ -18,7 +18,7 @@ o.add_option('--eor', dest='eor', default='ps_no_halos_nf0.521457_z9.50_useTs0_z
     help="The model epoch of reionization power spectrum.  The code is built to handle output power spectra from 21cmFAST.")
 o.add_option('--ndays', dest='ndays', default=180., type=float,
     help="The total number of days observed.  The default is 180, which is the maximum a particular R.A. can be observed in one year if one only observes at night.  The total observing time is ndays*n_per_day")
-o.add_option('--n_per_day', dest='n_per_day', default=6., type=float.=,
+o.add_option('--n_per_day', dest='n_per_day', default=6., type=float,
     help="The number of good observing hours per day.  This corresponds to the size of a low-foreground region in right ascension for a drift scanning instrument.  The total observing time is ndays*n_per_day")
 
 opts, args = o.parse_args(sys.argv[1:])
@@ -55,7 +55,7 @@ n_lstbins = opts.n_per_day*60./obs_duration
 #You can change this to have any model you want, as long as mk, mpk and p21 are returned
 
 #This is a dimensionless power spectrum, i.e., Delta^2
-modelfile = 'ps_no_halos_nf0.521457_z9.50_useTs0_zetaX-1.0e+00_200_400Mpc_v2'
+modelfile = opts.eor
 model = n.loadtxt(modelfile)
 mk, mpk = model[:,0]/h, model[:,1] #k, Delta^2(k)
 #note that we're converting from Mpc to h/Mpc
@@ -80,10 +80,8 @@ sense, Tsense = {}, {}
 uv_coverage *= t_int
 SIZE = uv_coverage.shape[0]
 
-# Cut unnecessary data out of uv coverage
-# Get rid of auto-correlations
+# Cut unnecessary data out of uv coverage: auto-correlations & half of uv plane (which is not statistically independent for real sky)
 uv_coverage[SIZE/2,SIZE/2] = 0
-# Cut out 1/2 uv plane (not statistically independent)
 uv_coverage[:,:SIZE/2] = 0
 uv_coverage[SIZE/2:,SIZE/2] = 0
 

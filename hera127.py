@@ -70,7 +70,7 @@ prms = {
     'loc': ('38:25:59.24',  '-79:51:02.1'), # Green Bank, WV
     'antpos': antpos,
     'beam': a.fit.Beam2DGaussian,
-    'dish_size_in_lambda': 7., #wavelengths at 150 MHz = 2 meters; this will also define the observation duration
+    'dish_size_in_lambda': 7., #in units of wavelengths at 150 MHz = 2 meters; this will also define the observation duration
     'Trx': 1e5 #receiver temp in mK
 }
 
@@ -82,7 +82,7 @@ def get_aa(freqs):
     antennas = []
     nants = len(prms['antpos'])
     for i in range(nants):
-        beam = prms['beam'](freqs, xwidth=(0.45/prms['dish_size_in_lambda']), ywidth=(0.45/prms['dish_size_in_lambda'])) #as it stands, the size of the beam as defined here is not actually used in the sensitivity calculation
+        beam = prms['beam'](freqs, xwidth=(0.45/prms['dish_size_in_lambda']), ywidth=(0.45/prms['dish_size_in_lambda'])) #as it stands, the size of the beam as defined here is not actually used anywhere in this package, but is a necessary parameter for the aipy Beam2DGaussian object
         antennas.append(a.fit.Antenna(0, 0, 0, beam))
     aa = AntennaArray(prms['loc'], antennas)
     p = {}
