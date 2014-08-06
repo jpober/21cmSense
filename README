@@ -9,8 +9,6 @@ Dependencies:
 numpy
 scipy
 aipy (https://github.com/AaronParsons/aipy)
-capo (https://github.com/dannyjacobs/capo)
-The capo dependencies are very simple cosmological conversion routines (e.g. MHz to Mpc along the line-of-sight).  If there is enough interest, I can natively add these functions to remove the capo dependency.
 
 ===============================================================================
 

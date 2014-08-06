@@ -2,7 +2,7 @@
 '''
 Calculates the expected sensitivity of a 21cm experiment to a given 21cm power spectrum.  Requires as input an array .npz file created with mk_array_file.py.
 '''
-import aipy as a, numpy as n, optparse, sys, capo as C
+import aipy as a, numpy as n, optparse, sys
 from scipy import interpolate
 
 o = optparse.OptionParser()
@@ -23,6 +23,44 @@ o.add_option('--n_per_day', dest='n_per_day', default=6., type=float,
 
 opts, args = o.parse_args(sys.argv[1:])
 
+#=========================COSMOLOGY/BINNING FUNCTIONS=========================
+
+#Convert frequency (GHz) to redshift for 21cm line.
+def f2z(fq):
+    F21 = 1.42040575177
+    return (F21 / fq - 1)
+
+#Multiply by this to convert an angle on the sky to a transverse distance in Mpc/h at redshift z
+def dL_dth(z):
+    '''[h^-1 Mpc]/radian, from Furlanetto et al. (2006)'''
+    return 1.9 * (1./a.const.arcmin) * ((1+z) / 10.)**.2
+
+#Multiply by this to convert a bandwidth in GHz to a line of sight distance in Mpc/h at redshift z
+def dL_df(z, omega_m=0.266):
+    '''[h^-1 Mpc]/GHz, from Furlanetto et al. (2006)'''
+    return (1.7 / 0.1) * ((1+z) / 10.)**.5 * (omega_m/0.15)**-0.5 * 1e3
+
+#Multiply by this to convert a baseline length in wavelengths (at the frequency corresponding to redshift z) into a tranverse k mode in h/Mpc at redshift z
+def dk_du(z):
+    '''2pi * [h Mpc^-1] / [wavelengths], valid for u >> 1.'''
+    return 2*n.pi / dL_dth(z) # from du = 1/dth, which derives from du = d(sin(th)) using the small-angle approx
+
+#Multiply by this to convert eta (FT of freq.; in 1/GHz) to line of sight k mode in h/Mpc at redshift z
+def dk_deta(z):
+    '''2pi * [h Mpc^-1] / [GHz^-1]'''
+    return 2*n.pi / dL_df(z)
+
+#scalar conversion between observing and cosmological coordinates
+def X2Y(z):
+    '''[h^-3 Mpc^3] / [str * GHz]'''
+    return dL_dth(z)**2 * dL_df(z)
+
+#A function used for binning
+def find_nearest(array,value):
+    idx = (n.abs(array-value)).argmin()
+    return idx
+
+
 #====================OBSERVATION/COSMOLOGY PARAMETER VALUES====================
 
 #Load in data from array file; see mk_array_file.py for definitions of the parameters
@@ -39,13 +77,13 @@ else:
 
 h = 0.7
 B = .008 #largest bandwidth allowed by "cosmological evolution", i.e., the maximum line of sight volume over which the universe can be considered co-eval
-z = C.pspec.f2z(opts.freq)
+z = f2z(opts.freq)
 
 dish_size_in_lambda = dish_size_in_lambda*(opts.freq/.150) # linear frequency evolution, relative to 150 MHz
 first_null = 1.22/dish_size_in_lambda #for an airy disk, even though beam model is Gaussian
 bm = 1.13*(2.35*(0.45/dish_size_in_lambda))**2
 nchan = int((B/.1)*1024) #assumes 100 MHz of bandwidth are cut into 1024 channels
-kpls = C.pspec.dk_deta(z) * n.fft.fftfreq(nchan,B/nchan)
+kpls = dk_deta(z) * n.fft.fftfreq(nchan,B/nchan)
 
 Tsky = 60e3 * (3e8/(opts.freq*1e9))**2.55  # sky temperature in mK
 n_lstbins = opts.n_per_day*60./obs_duration
@@ -62,13 +100,6 @@ mk, mpk = model[:,0]/h, model[:,1] #k, Delta^2(k)
 
 #interpolation function for the EoR model
 p21 = interpolate.interp1d(mk, mpk, kind='linear')
-
-#==============================OTHER FUNCTIONS===============================
-
-#A function used for binning
-def find_nearest(array,value):
-    idx = (n.abs(array-value)).argmin()
-    return idx
 
 #=================================MAIN CODE===================================
 
@@ -90,11 +121,11 @@ nonzero = n.where(uv_coverage > 0)
 for iu,iv in zip(nonzero[1], nonzero[0]):
    u, v = (iu - SIZE/2) * dish_size_in_lambda, (iv - SIZE/2) * dish_size_in_lambda
    umag = n.sqrt(u**2 + v**2)
-   kpr = umag * C.pspec.dk_du(z)
+   kpr = umag * dk_du(z)
    kprs.append(kpr)
    #calculate horizon limit for baseline of length umag
-   if opts.model in ['mod','pess']: hor = C.pspec.dk_deta(z) * umag/opts.freq + opts.buff
-   elif opts.model in ['opt']: hor = C.pspec.dk_deta(z) * (umag/opts.freq)*n.sin(first_null/2)
+   if opts.model in ['mod','pess']: hor = dk_deta(z) * umag/opts.freq + opts.buff
+   elif opts.model in ['opt']: hor = dk_deta(z) * (umag/opts.freq)*n.sin(first_null/2)
    else: print '%s is not a valid foreground model; Aborting...' % opts.model; sys.exit()
    if not sense.has_key(kpr): 
        sense[kpr] = n.zeros_like(kpls)
@@ -111,14 +142,14 @@ for iu,iv in zip(nonzero[1], nonzero[0]):
        Tsys = Tsky + Trx
        bm2 = bm/2. #beam^2 term calculated for Gaussian; see Parsons et al. 2014
        bm_eff = bm**2 / bm2 # this can obviously be reduced; it isn't for clarity
-       scalar = C.pspec.X2Y(z) * bm_eff * B * k**3 / (2*n.pi**2)
+       scalar = X2Y(z) * bm_eff * B * k**3 / (2*n.pi**2)
        Trms = Tsys / n.sqrt(2*(B*1e9)*tot_integration)
        #add errors in inverse quadrature
        sense[kpr][i] += 1./(scalar*Trms**2 + delta21)**2
        Tsense[kpr][i] += 1./(scalar*Trms**2)**2
 
 #bin the result in 1D
-delta = C.pspec.dk_deta(z)*(1./B) #default bin size is given by bandwidth
+delta = dk_deta(z)*(1./B) #default bin size is given by bandwidth
 kmag = n.arange(delta,n.max(mk),delta)
 
 kprs = n.array(kprs)
