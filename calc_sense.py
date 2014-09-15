@@ -17,9 +17,9 @@ o.add_option('-f', '--freq', dest='freq', default=.135, type=float,
 o.add_option('--eor', dest='eor', default='ps_no_halos_nf0.521457_z9.50_useTs0_zetaX-1.0e+00_200_400Mpc_v2',
     help="The model epoch of reionization power spectrum.  The code is built to handle output power spectra from 21cmFAST.")
 o.add_option('--ndays', dest='ndays', default=180., type=float,
-    help="The total number of days observed.  The default is 180, which is the maximum a particular R.A. can be observed in one year if one only observes at night.  The total observing time is ndays*n_per_day")
+    help="The total number of days observed.  The default is 180, which is the maximum a particular R.A. can be observed in one year if one only observes at night.  The total observing time is ndays*n_per_day.")
 o.add_option('--n_per_day', dest='n_per_day', default=6., type=float,
-    help="The number of good observing hours per day.  This corresponds to the size of a low-foreground region in right ascension for a drift scanning instrument.  The total observing time is ndays*n_per_day")
+    help="The number of good observing hours per day.  This corresponds to the size of a low-foreground region in right ascension for a drift scanning instrument.  The total observing time is ndays*n_per_day.  Default is 6.")
 
 opts, args = o.parse_args(sys.argv[1:])
 

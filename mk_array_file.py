@@ -73,11 +73,10 @@ print 'There are %i baseline types' % len(uvbins.keys())
 
 #grid each baseline type into uv plane
 dim = n.round(uv_max/dish_size_in_lambda/2)*2 - 1 # round to nearest odd
-uvplane = {}
 uvsum,quadsum = n.zeros((dim,dim)), n.zeros((dim,dim)) #quadsum adds all non-instantaneously-redundant baselines incoherently
 for cnt, uvbin in enumerate(uvbins):
     print 'working on %i of %i uvbins' % (cnt+1, len(uvbins))
-    uvplane[uvbin] = n.zeros((dim,dim))
+    uvplane = n.zeros((dim,dim))
     for t in times:
         aa.set_jultime(t)
         lst = aa.sidereal_time()
@@ -88,17 +87,15 @@ for cnt, uvbin in enumerate(uvbins):
         i, j = int(i), int(j)
         u,v,w = aa.gen_uvw(i,j,src=obs_zen)
         _beam = beamgridder(xcen=u/dish_size_in_lambda,ycen=v/dish_size_in_lambda,size=dim)
-        uvplane[uvbin] += nbls*_beam
+        uvplane += nbls*_beam
         uvsum += nbls*_beam
-    quadsum += (uvplane[uvbin])**2
+    quadsum += (uvplane)**2
 
 quadsum = quadsum**.5
-uvplane['sum'] = uvsum
-uvplane['quadsum'] = quadsum
 
 n.savez('%s_arrayfile.npz' % name,
-uv_coverage = uvplane['sum'],
-uv_coverage_pess = uvplane['quadsum'],
+uv_coverage = uvsum,
+uv_coverage_pess = quadsum,
 name = name,
 obs_duration = obs_duration,
 dish_size_in_lambda = dish_size_in_lambda,
