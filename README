@@ -20,7 +20,7 @@ These files will contain all the information about the array you are trying to c
 
 mk_array_file.py:
 
-This code takes calibration files as input (note that when calling a calibration file from the command line, one needs to omit the '.py' on the end), and returns a .npz file that can be read by calc_sense.py.  As it stands, this code should require no user modification even for any antenna array.
+This code takes calibration files as input (note that when calling a calibration file from the command line, one needs to omit the '.py' on the end), and returns a .npz file that can be read by calc_sense.py.  As it stands, this code should require no user modification for a drift scan with any antenna array.  For a tracked scan, the opts.track keyword should be set to the length of the track in hours.  Note that no correction is made for the dipole beam of phased array tiles while tracking.  Therefore, this calculation will break down for very long tracks.
 
 calc_sense.py: 
 

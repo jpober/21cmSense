@@ -1,12 +1,15 @@
 #! /usr/bin/env python
 '''
-Creates an array file for use by calc_sense.py.  The main product is the uv coverage produced by the array during the time it takes the sky to drift through the primary beam; other array parameters are also saved.  Array specific information comes from an aipy cal file.'''
+Creates an array file for use by calc_sense.py.  The main product is the uv coverage produced by the array during the time it takes the sky to drift through the primary beam; other array parameters are also saved.  Array specific information comes from an aipy cal file.  If opts.track is set, produces the uv coverage
+for the length specified instead of that set by the primary beam.'''
 import aipy as a, numpy as n
 import optparse, sys
 
 o = optparse.OptionParser()
 o.set_usage('mk_array_file.py -C [calfile]')
 a.scripting.add_standard_options(o,cal=True)
+o.add_option('--track', dest='track', default=None, type=float,
+    help="If set, calculate sensitivity for a tracked observation of this duration in hours; otherwise, calculate for a drift scan.") 
 opts, args = o.parse_args(sys.argv[1:])
 
 #============================SIMPLE GRIDDING FUNCTION=======================
@@ -29,8 +32,12 @@ def beamgridder(xcen,ycen,size):
 aa = a.cal.get_aa(opts.cal,n.array([.150]))
 nants = len(aa)
 prms = aa.get_arr_params()
-name = prms['name']; print name
-obs_duration = prms['obs_duration']
+if opts.track:
+    obs_duration=60.*opts.track
+    name = prms['name']+'track_%.1fhr' % opts.track; print name
+else:
+    obs_duration = prms['obs_duration']
+    name = prms['name']+'drift'; print name
 uv_max = prms['uv_max']
 dish_size_in_lambda = prms['dish_size_in_lambda']
 
