@@ -9,7 +9,9 @@ o = optparse.OptionParser()
 o.set_usage('mk_array_file.py -C [calfile]')
 a.scripting.add_standard_options(o,cal=True)
 o.add_option('--track', dest='track', default=None, type=float,
-    help="If set, calculate sensitivity for a tracked observation of this duration in hours; otherwise, calculate for a drift scan.") 
+    help="If set, calculate sensitivity for a tracked observation of this duration in hours; otherwise, calculate for a drift scan.")
+o.add_option('--bl_max', dest='bl_max', default=None, type=float,
+    help="Set the maximum baseline (in meters) to include in the uv plane.  Use to exclude outriggers with little EoR sensitivity to speed up calculation.") 
 opts, args = o.parse_args(sys.argv[1:])
 
 #============================SIMPLE GRIDDING FUNCTION=======================
@@ -81,10 +83,12 @@ for i in xrange(nants):
 print 'There are %i baseline types' % len(uvbins.keys())
 
 print 'The longest baseline is %.2f meters' % (bl_len_max*(a.const.c/(fq*1e11))) #1e11 converts from GHz to cm
+if opts.bl_max: 
+    bl_len_max = opts.bl_max / (a.const.c/(fq*1e11))
+    print 'The longest baseline being included is %.2f m' % (bl_len_max*(a.const.c/(fq*1e11)))
 
 #grid each baseline type into uv plane
 dim = n.round(bl_len_max/dish_size_in_lambda)*2 + 1 # round to nearest odd
-print dim
 uvsum,quadsum = n.zeros((dim,dim)), n.zeros((dim,dim)) #quadsum adds all non-instantaneously-redundant baselines incoherently
 for cnt, uvbin in enumerate(uvbins):
     print 'working on %i of %i uvbins' % (cnt+1, len(uvbins))
