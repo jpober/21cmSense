@@ -46,7 +46,6 @@ class AntennaArray(a.pol.AntennaArray):
                 self.array_params['obs_duration'] = 60.*FWHM / (15.*a.const.deg)# minutes it takes the sky to drift through beam FWHM
             if param == 'antpos':
                 bl_lens = n.sum(n.array(prms[param])**2,axis=1)**.5
-                self.array_params['uv_max'] = n.ceil(n.max(bl_lens)) #longest baseline
         return self.array_params
 
 #===========================ARRAY SPECIFIC PARAMETERS==========================

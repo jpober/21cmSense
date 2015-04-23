@@ -38,7 +38,6 @@ if opts.track:
 else:
     obs_duration = prms['obs_duration']
     name = prms['name']+'drift'; print name
-uv_max = prms['uv_max']
 dish_size_in_lambda = prms['dish_size_in_lambda']
 
 #==========================FIDUCIAL OBSERVATION PARAMETERS===================
@@ -67,19 +66,25 @@ obs_zen = a.phs.RadioFixedBody(obs_lst,aa.lat)
 obs_zen.compute(aa) #observation is phased to zenith of the center time of the drift 
 
 #find redundant baselines
+bl_len_max = 0.
 for i in xrange(nants):
     print 'working on antenna %i of %i' % (i, len(aa))
     for j in xrange(nants):
         if i == j: continue #no autocorrelations
         u,v,w = aa.gen_uvw(i,j,src=obs_zen)
+        bl_len = n.sqrt(u**2 + v**2)
+        if bl_len > bl_len_max: bl_len_max = bl_len
         uvbin = '%.1f,%.1f' % (u,v)
         cnt +=1
         if not uvbins.has_key(uvbin): uvbins[uvbin] = ['%i,%i' % (i,j)]
         else: uvbins[uvbin].append('%i,%i' % (i,j))
 print 'There are %i baseline types' % len(uvbins.keys())
 
+print 'The longest baseline is %.2f meters' % (bl_len_max*(a.const.c/(fq*1e11))) #1e11 converts from GHz to cm
+
 #grid each baseline type into uv plane
-dim = n.round(uv_max/dish_size_in_lambda/2)*2 - 1 # round to nearest odd
+dim = n.round(bl_len_max/dish_size_in_lambda)*2 + 1 # round to nearest odd
+print dim
 uvsum,quadsum = n.zeros((dim,dim)), n.zeros((dim,dim)) #quadsum adds all non-instantaneously-redundant baselines incoherently
 for cnt, uvbin in enumerate(uvbins):
     print 'working on %i of %i uvbins' % (cnt+1, len(uvbins))
