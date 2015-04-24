@@ -22,7 +22,7 @@ def beamgridder(xcen,ycen,size):
     xcen += cen
     ycen = -1*ycen + cen
     beam = n.zeros((size,size))
-    if round(ycen) > size - 1 or round(xcen) > size - 1: 
+    if round(ycen) > size - 1 or round(xcen) > size - 1 or ycen < 0. or xcen <0.: 
         return beam
     else:
         beam[round(ycen),round(xcen)] = 1. #single pixel gridder
@@ -36,7 +36,7 @@ nants = len(aa)
 prms = aa.get_arr_params()
 if opts.track:
     obs_duration=60.*opts.track
-    name = prms['name']+'track_%.1fhr' % opts.track; print name
+    name = prms['name']+'track_%.1fhr' % opts.track
 else:
     obs_duration = prms['obs_duration']
     name = prms['name']+'drift'; print name
@@ -84,7 +84,7 @@ print 'There are %i baseline types' % len(uvbins.keys())
 
 print 'The longest baseline is %.2f meters' % (bl_len_max*(a.const.c/(fq*1e11))) #1e11 converts from GHz to cm
 if opts.bl_max: 
-    bl_len_max = opts.bl_max / (a.const.c/(fq*1e11))
+    bl_len_max = opts.bl_max / (a.const.c/(fq*1e11)) #units of wavelength
     print 'The longest baseline being included is %.2f m' % (bl_len_max*(a.const.c/(fq*1e11)))
 
 #grid each baseline type into uv plane
@@ -108,6 +108,8 @@ for cnt, uvbin in enumerate(uvbins):
     quadsum += (uvplane)**2
 
 quadsum = quadsum**.5
+
+print "Saving file as %s_arrayfile.npz" % name
 
 n.savez('%s_arrayfile.npz' % name,
 uv_coverage = uvsum,
