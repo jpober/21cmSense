@@ -20,6 +20,8 @@ o.add_option('--ndays', dest='ndays', default=180., type=float,
     help="The total number of days observed.  The default is 180, which is the maximum a particular R.A. can be observed in one year if one only observes at night.  The total observing time is ndays*n_per_day.")
 o.add_option('--n_per_day', dest='n_per_day', default=6., type=float,
     help="The number of good observing hours per day.  This corresponds to the size of a low-foreground region in right ascension for a drift scanning instrument.  The total observing time is ndays*n_per_day.  Default is 6.  If simulating a tracked scan, n_per_day should be a multiple of the length of the track (i.e. for two three-hour tracks per day, n_per_day should be 6).")
+o.add_option('--nchan', dest='nchan', default=82, type=int,
+    help="Integer number of channels across cosmological bandwidth of 8 MHz.  Defaults to 82, which is equivalent to 1024 channels over 100 MHz of bandwidth.  Sets maximum k_parallel that can be probed, but little to no overall effect on sensitivity.")
 opts, args = o.parse_args(sys.argv[1:])
 
 #=========================COSMOLOGY/BINNING FUNCTIONS=========================
@@ -81,7 +83,7 @@ z = f2z(opts.freq)
 dish_size_in_lambda = dish_size_in_lambda*(opts.freq/.150) # linear frequency evolution, relative to 150 MHz
 first_null = 1.22/dish_size_in_lambda #for an airy disk, even though beam model is Gaussian
 bm = 1.13*(2.35*(0.45/dish_size_in_lambda))**2
-nchan = int((B/.1)*1024) #assumes 100 MHz of bandwidth are cut into 1024 channels
+nchan = opts.nchan
 kpls = dk_deta(z) * n.fft.fftfreq(nchan,B/nchan)
 
 Tsky = 60e3 * (3e8/(opts.freq*1e9))**2.55  # sky temperature in mK
