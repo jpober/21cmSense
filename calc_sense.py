@@ -22,6 +22,8 @@ o.add_option('--n_per_day', dest='n_per_day', default=6., type=float,
     help="The number of good observing hours per day.  This corresponds to the size of a low-foreground region in right ascension for a drift scanning instrument.  The total observing time is ndays*n_per_day.  Default is 6.  If simulating a tracked scan, n_per_day should be a multiple of the length of the track (i.e. for two three-hour tracks per day, n_per_day should be 6).")
 o.add_option('--nchan', dest='nchan', default=82, type=int,
     help="Integer number of channels across cosmological bandwidth of 8 MHz.  Defaults to 82, which is equivalent to 1024 channels over 100 MHz of bandwidth.  Sets maximum k_parallel that can be probed, but little to no overall effect on sensitivity.")
+o.add_option('--no_ns', dest='no_ns', action='store_true',
+    help="Remove pure north/south baselines (u=0) from the sensitivity calculation.  These baselines can potentially have higher systematics, so excluding them represents a conservative choice.")
 opts, args = o.parse_args(sys.argv[1:])
 
 #=========================COSMOLOGY/BINNING FUNCTIONS=========================
@@ -113,9 +115,12 @@ uv_coverage *= t_int
 SIZE = uv_coverage.shape[0]
 
 # Cut unnecessary data out of uv coverage: auto-correlations & half of uv plane (which is not statistically independent for real sky)
-uv_coverage[SIZE/2,SIZE/2] = 0
-uv_coverage[:,:SIZE/2] = 0
-uv_coverage[SIZE/2:,SIZE/2] = 0
+uv_coverage[SIZE/2,SIZE/2] = 0.
+uv_coverage[:,:SIZE/2] = 0.
+uv_coverage[SIZE/2:,SIZE/2] = 0.
+if opts.no_ns: uv_coverage[:,SIZE/2] = 0.
+
+
 
 #loop over uv_coverage to calculate k_pr
 nonzero = n.where(uv_coverage > 0)
