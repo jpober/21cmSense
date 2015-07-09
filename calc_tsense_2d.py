@@ -130,7 +130,7 @@ for ind, kpr in enumerate(kprs):
 
 #fold over k-parallel
 Tsense2d = Tsense2d[:,cen:][:,::-1]
-Tsense2d[:,:-1] /= 2
+Tsense2d[:,:-1] /= n.sqrt(2)
 kpls = kpls[cen:]
 
 #save results to output npz
