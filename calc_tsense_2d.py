@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 '''
-Calculates the expected sensitivity of a 21cm experiment to a given 21cm power spectrum.  Requires as input an array .npz file created with mk_array_file.py.
+Calculates the expected 2D thermal sensitivity of a 21cm experiment.  Since it is thermal sensitivity only, no power spectrum model is required.  Requires as input an array .npz file created with mk_array_file.py.
 '''
 import aipy as a, numpy as n, optparse, sys
 import capo as C, pylab as p
