@@ -20,8 +20,10 @@ o.add_option('--ndays', dest='ndays', default=180., type=float,
     help="The total number of days observed.  The default is 180, which is the maximum a particular R.A. can be observed in one year if one only observes at night.  The total observing time is ndays*n_per_day.")
 o.add_option('--n_per_day', dest='n_per_day', default=6., type=float,
     help="The number of good observing hours per day.  This corresponds to the size of a low-foreground region in right ascension for a drift scanning instrument.  The total observing time is ndays*n_per_day.  Default is 6.  If simulating a tracked scan, n_per_day should be a multiple of the length of the track (i.e. for two three-hour tracks per day, n_per_day should be 6).")
+o.add_option('--bwidth', dest='bwidth', default=0.008, type=float,
+    help="Cosmological bandwidth in GHz.  Note this is not the total instrument bandwidth, but the redshift range that can be considered co-eval.  Default is 0.008 (8 MHz).")
 o.add_option('--nchan', dest='nchan', default=82, type=int,
-    help="Integer number of channels across cosmological bandwidth of 8 MHz.  Defaults to 82, which is equivalent to 1024 channels over 100 MHz of bandwidth.  Sets maximum k_parallel that can be probed, but little to no overall effect on sensitivity.")
+    help="Integer number of channels across cosmological bandwidth.  Defaults to 82, which is equivalent to 1024 channels over 100 MHz of bandwidth.  Sets maximum k_parallel that can be probed, but little to no overall effect on sensitivity.")
 o.add_option('--no_ns', dest='no_ns', action='store_true',
     help="Remove pure north/south baselines (u=0) from the sensitivity calculation.  These baselines can potentially have higher systematics, so excluding them represents a conservative choice.")
 opts, args = o.parse_args(sys.argv[1:])
@@ -79,7 +81,7 @@ else:
     uv_coverage = array['uv_coverage']
 
 h = 0.7
-B = .008 #largest bandwidth allowed by "cosmological evolution", i.e., the maximum line of sight volume over which the universe can be considered co-eval
+B = opts.bwidth
 z = f2z(opts.freq)
 
 dish_size_in_lambda = dish_size_in_lambda*(opts.freq/.150) # linear frequency evolution, relative to 150 MHz
