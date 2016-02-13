@@ -10,6 +10,8 @@ o.set_usage('mk_array_file.py -C [calfile]')
 a.scripting.add_standard_options(o,cal=True)
 o.add_option('--track', dest='track', default=None, type=float,
     help="If set, calculate sensitivity for a tracked observation of this duration in hours; otherwise, calculate for a drift scan.")
+o.add_option('--bl_min', dest='bl_min', default=0., type=float,
+    help="Set the minimum baseline (in meters) to include in the uv plane.")
 o.add_option('--bl_max', dest='bl_max', default=None, type=float,
     help="Set the maximum baseline (in meters) to include in the uv plane.  Use to exclude outriggers with little EoR sensitivity to speed up calculation.") 
 opts, args = o.parse_args(sys.argv[1:])
@@ -68,6 +70,7 @@ obs_zen = a.phs.RadioFixedBody(obs_lst,aa.lat)
 obs_zen.compute(aa) #observation is phased to zenith of the center time of the drift 
 
 #find redundant baselines
+bl_len_min = opts.bl_min / (a.const.c/(fq*1e11)) #converts meters to lambda
 bl_len_max = 0.
 for i in xrange(nants):
     print 'working on antenna %i of %i' % (i, len(aa))
@@ -76,6 +79,7 @@ for i in xrange(nants):
         u,v,w = aa.gen_uvw(i,j,src=obs_zen)
         bl_len = n.sqrt(u**2 + v**2)
         if bl_len > bl_len_max: bl_len_max = bl_len
+        if bl_len < bl_len_min: continue
         uvbin = '%.1f,%.1f' % (u,v)
         cnt +=1
         if not uvbins.has_key(uvbin): uvbins[uvbin] = ['%i,%i' % (i,j)]
@@ -109,9 +113,9 @@ for cnt, uvbin in enumerate(uvbins):
 
 quadsum = quadsum**.5
 
-print "Saving file as %s_arrayfile.npz" % name
+print "Saving file as %s_blmin%0.f_blmax%0.f_arrayfile.npz" % (name, bl_len_min, bl_len_max) 
 
-n.savez('%s_arrayfile.npz' % name,
+n.savez('%s_blmin%0.f_blmax%0.f_arrayfile.npz' % (name, bl_len_min, bl_len_max),
 uv_coverage = uvsum,
 uv_coverage_pess = quadsum,
 name = name,
