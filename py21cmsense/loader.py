@@ -1,9 +1,7 @@
 #! usr/bin/env python
 '''
     Python module used to accompany 21cmSense.
-
 '''
-
 
 def load_noise_files(files=None,verbose=False):
     '''
@@ -41,6 +39,8 @@ def load_noise_files(files=None,verbose=False):
         noise_k = noise_k[noise_k<nk_grid.max()]
         if verbose: print noisefile,np.max(noise),
 
+        ##adds values at k=0 to help interpolator function
+        ##noise approaches infinite at low K
         noise_k = np.insert(noise_k,0,0)
         noise = np.insert(noise,0, np.min([1e+3,np.median(noise)]))
 
