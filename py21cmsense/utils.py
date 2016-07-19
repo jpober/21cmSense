@@ -21,6 +21,7 @@ def load_noise_files(files=None,verbose=False,polyfit_deg=3):
         return 0,'',''
 
     #wrap single files for iteration
+    flag=False
     if len(np.shape(files)) ==0: files = [files]; flag=True
     files.sort()
     re_f = re.compile('(\d+\.\d+)')#glob should load them in increasing freq order
