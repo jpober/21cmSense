@@ -6,8 +6,9 @@ setup_args = {
     'name': 'py21cmsense',
     'package_dir': {'py21cmsense': 'py21cmsense'},
     'packages': ['py21cmsense'],
-    'py_modules': ['py21cmsense.loader'],
+    'py_modules': ['py21cmsense.utils'],
     'version': __version__,
+    'package_data': {'py21cmsense': ['tests/test_data/*.npz', 'tests/*.py']},
 }
 
 if __name__ == '__main__':

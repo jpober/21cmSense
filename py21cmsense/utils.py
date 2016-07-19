@@ -1,22 +1,27 @@
 #! usr/bin/env python
+from scipy.interpolate import interp2d
+import numpy as np, re
 '''
     Python module used to accompany 21cmSense.
 '''
 
-def load_noise_files(files=None,verbose=False):
+def load_noise_files(files=None,verbose=False,polyfit_deg=3):
     '''
     Loads input 21cmsense files and clips nans and infs
     reduces k-range to [.01,.51] hMpc^-1
     returns freqs, ks, noise_values
     '''
-    import numpy as np, re
     if files is None:
-        print 'No files Input'
-        print 'Exiting'
-        return 0,_,_
+        if verbose: print 'No files Input'
+        if verbose: print 'Exiting'
+        return 0,'',''
+
+    if not files:
+        if verbose: print 'No Files Input'
+        return 0,'',''
 
     #wrap single files for iteration
-    if len(np.shape(files)) ==0: files = [files]
+    if len(np.shape(files)) ==0: files = [files]; flag=True
     files.sort()
     re_f = re.compile('(\d+\.\d+)')#glob should load them in increasing freq order
 
@@ -44,7 +49,7 @@ def load_noise_files(files=None,verbose=False):
         noise_k = np.insert(noise_k,0,0)
         noise = np.insert(noise,0, np.min([1e+3,np.median(noise)]))
 
-        tmp = np.polyfit(noise_k,noise,3,full=True)
+        tmp = np.polyfit(noise_k,noise,polyfit_deg,full=True)
         noise = np.poly1d(tmp[0])(nk_grid)
         noises.append(noise)
         noise_ks.append(nk_grid)
@@ -54,38 +59,41 @@ def load_noise_files(files=None,verbose=False):
         if verbose: print f
         noise_freqs.append(f)
 
+    if flag:
+        noise_freqs = np.squeeze(noise_freqs)
+        noise_ks = np.squeeze(noise_ks)
+        noises = np.squeeze(noises)
     return noise_freqs, noise_ks, noises
 
 
-def noise_interp2d(noise_freqs=None,noise_ks=None,noises=None,kind='linear'
-        ,**kwargs):
+def noise_interp2d(noise_freqs=None,noise_ks=None,noises=None,
+        interp_kind='linear', verbose=False ,**kwargs):
     '''
     Builds 2d interpolator from loaded data, default interpolation: linear
     interpolator inputs k (in hMpci), freq (in MHz)n
     '''
-    from scipy.interpolate import interp2d
-    import numpy as np
     if noise_freqs is None:
-        print 'Must Supply frequency values'
+        if verbose: print 'Must Supply frequency values'
         return 0
     if noise_ks is None:
-        print 'Must supply k values'
+        if verbose: print 'Must supply k values'
         return 0
     if noises is None:
-        print 'Must supply T_errs'
+        if verbose: print 'Must supply T_errs'
         return 0
 
     noise_k_range = [np.min(np.concatenate(noise_ks)),np.max(np.concatenate(noise_ks))]
 
     if np.min(noise_k_range) == np.max(noise_k_range):
-        print 'K range only contains one value'
-        print 'Exiting'
+        if verbose: print 'K range only contains one value'
+        if verbose: print 'Exiting'
         return 0
 
     nk_count = np.mean([len(myks) for myks in noise_ks])
     nks = np.linspace(noise_k_range[0],noise_k_range[1],num=nk_count)
     noise_interp = np.array([np.interp(nks,noise_ks[i],noises[i]) for i in range(len(noises))])
     NK,NF = np.meshgrid(nks,noise_freqs)
-    noise_interp = interp2d(NK,NF,noise_interp,kind=kind, **kwargs)
+    noise_interp = interp2d(NK, NF, noise_interp, kind=interp_kind,
+            **kwargs)
 
     return noise_interp
