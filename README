@@ -30,8 +30,19 @@ which excludes the u = 0 column of the uv plane; this effectively removes north/
 ===========================================================================
 
 Py21cmSense
-
 A python utility package designed to complement 21cmSense.
+
+Installation Instruction:
+
+To instally Py21cmSense run the following command from the 21cmSense directory:
+
+    python setup.py install
+
+Py21cmSense can be tested using nose as follows:
+
+    nosetests py21cmsense
+
+
 There is currently one submodule to help make the output of calc_sense.py easier to use.
 
 The utils submodule contains the following functions:
