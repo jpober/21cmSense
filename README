@@ -27,4 +27,36 @@ calc_sense.py:
 This is the main portion of the package.  To run with defaults, it should only need an array file as input.  Through the command line, the user can change the foreground avoidance/subtraction model, the observing frequency, the epoch of reionization model (which is required to calculate sample variance), and the total observing time.   A redshift 9.5 ~50% ionization model produced by 21cmFAST has been included.  The code can natively handle any power spectrum output from 21cmFAST, but should be easily modifiable to include other models.  Since the calculated sensitivities are for a single frequency, one should change the observing frequency if one uses a power spectrum from a redshift other than the default (z = 9.5).  Changing more detailed parameters, like the sky temperature model, will require editing of the code itself.  The code also now contains the opts.no_ns option,
 which excludes the u = 0 column of the uv plane; this effectively removes north/south oriented baselines from the sensitivity ccalculation, which can be corrupted by systematics due to their low fringe rate.
 
+===========================================================================
+
+Py21cmSense
+A python utility package designed to complement 21cmSense.
+
+Installation Instruction:
+
+To instally Py21cmSense run the following command from the 21cmSense directory:
+
+    python setup.py install
+
+Py21cmSense can be tested using nose as follows:
+
+    nosetests py21cmsense
+
+
+There is currently one submodule to help make the output of calc_sense.py easier to use.
+
+The utils submodule contains the following functions:
+
+load_noise_files:
+    function call: load_noise_files(filenames, verbose=False, polyfit_deg=3)
+    polyfit_deg is the degree of the polynomial used to fit the T_errs read from calc_sense.py output. (Default 3)
+    This function accepts a list (or glob) of filenames of the calc_sense.py output and returns:frequenceis [MHz], k magnitudes(hMpc^(-1)), and sensititivity estimates. Each retruned item is a list ordered by increasing frequency.
+
+noise_interp2d:
+    fucntion call: noise_interp2d( frequencies, k-values, T_errs, interp_kind='linear', verbose=False,**kwargs)
+    interp_kind is passed to scipy.interpolate.interp2d accepts ['linear','cubic','quintic']. All **kwargs passed to scipy.interpolate.interp2d
+    Creates a interpolation grid over  k magnitude (hMpc^(-1)) and Frequencies (MHz) using the output of load_noise_files. This can be used to sample expected sensitivity between frequency values give to calc_sense.py as input.
+
+
+
 Questions, comments, or feedback should be directed to jpober <at> uw <dot> edu.If you use this code in any of your work, please acknowledge Pober et al. 2013AJ....145...65P and Pober et al. 2014ApJ...782...66P and provide a link to this repository.
