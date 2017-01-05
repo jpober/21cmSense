@@ -13,7 +13,9 @@ o.add_option('--track', dest='track', default=None, type=float,
 o.add_option('--bl_min', dest='bl_min', default=0., type=float,
     help="Set the minimum baseline (in meters) to include in the uv plane.")
 o.add_option('--bl_max', dest='bl_max', default=None, type=float,
-    help="Set the maximum baseline (in meters) to include in the uv plane.  Use to exclude outriggers with little EoR sensitivity to speed up calculation.") 
+    help="Set the maximum baseline (in meters) to include in the uv plane.  Use to exclude outriggers with little EoR sensitivity to speed up calculation.")
+o.add_option('-f', '--freq', dest='freq', default=0.135, type=float,
+    help="The central frequency of the observation in GHz.  Default is 0.135 GHz, corresponding to z = 9.5, which matches the default model power spectrum used in calc_sense.py.")
 opts, args = o.parse_args(sys.argv[1:])
 
 #============================SIMPLE GRIDDING FUNCTION=======================
@@ -40,7 +42,7 @@ if opts.track:
     obs_duration=60.*opts.track
     name = prms['name']+'track_%.1fhr' % opts.track
 else:
-    obs_duration = prms['obs_duration']
+    obs_duration = prms['obs_duration']*(0.15/opts.freq) #scales observing time linearly with frequency to account for change in beam FWHM
     name = prms['name']+'drift'; print name
 dish_size_in_lambda = prms['dish_size_in_lambda']
 
@@ -56,7 +58,7 @@ end_jd = cen_jd + (1./24)*(((obs_duration-1)/t_int)/2)
 times = n.arange(start_jd,end_jd,(1./24/t_int))
 print 'Observation duration:', start_jd, end_jd
 
-fq = .150 #all calculations in calc_sense.py are relative to a fiducial 150 MHz; changing this parameter will not change your observing band, but rather break the scaling relations in calc_sense.  to change your observing band, use the command line option in calc_sense.
+ref_fq = .150
 
 #================================MAIN CODE===================================
 
@@ -70,7 +72,7 @@ obs_zen = a.phs.RadioFixedBody(obs_lst,aa.lat)
 obs_zen.compute(aa) #observation is phased to zenith of the center time of the drift 
 
 #find redundant baselines
-bl_len_min = opts.bl_min / (a.const.c/(fq*1e11)) #converts meters to lambda
+bl_len_min = opts.bl_min / (a.const.c/(ref_fq*1e11)) #converts meters to lambda
 bl_len_max = 0.
 for i in xrange(nants):
     print 'working on antenna %i of %i' % (i, len(aa))
@@ -86,10 +88,10 @@ for i in xrange(nants):
         else: uvbins[uvbin].append('%i,%i' % (i,j))
 print 'There are %i baseline types' % len(uvbins.keys())
 
-print 'The longest baseline is %.2f meters' % (bl_len_max*(a.const.c/(fq*1e11))) #1e11 converts from GHz to cm
+print 'The longest baseline is %.2f meters' % (bl_len_max*(a.const.c/(ref_fq*1e11))) #1e11 converts from GHz to cm
 if opts.bl_max: 
-    bl_len_max = opts.bl_max / (a.const.c/(fq*1e11)) #units of wavelength
-    print 'The longest baseline being included is %.2f m' % (bl_len_max*(a.const.c/(fq*1e11)))
+    bl_len_max = opts.bl_max / (a.const.c/(ref_fq*1e11)) #units of wavelength
+    print 'The longest baseline being included is %.2f m' % (bl_len_max*(a.const.c/(ref_fq*1e11)))
 
 #grid each baseline type into uv plane
 dim = n.round(bl_len_max/dish_size_in_lambda)*2 + 1 # round to nearest odd
@@ -113,9 +115,9 @@ for cnt, uvbin in enumerate(uvbins):
 
 quadsum = quadsum**.5
 
-print "Saving file as %s_blmin%0.f_blmax%0.f_arrayfile.npz" % (name, bl_len_min, bl_len_max) 
+print "Saving file as %s_blmin%0.f_blmax%0.f_%.3fGHz_arrayfile.npz" % (name, bl_len_min, bl_len_max, opts.freq) 
 
-n.savez('%s_blmin%0.f_blmax%0.f_arrayfile.npz' % (name, bl_len_min, bl_len_max),
+n.savez('%s_blmin%0.f_blmax%0.f_%.3fGHz_arrayfile.npz' % (name, bl_len_min, bl_len_max, opts.freq),
 uv_coverage = uvsum,
 uv_coverage_pess = quadsum,
 name = name,
@@ -123,4 +125,5 @@ obs_duration = obs_duration,
 dish_size_in_lambda = dish_size_in_lambda,
 Trx = prms['Trx'],
 t_int = t_int,
+freq=opts.freq
 )

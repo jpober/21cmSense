@@ -12,8 +12,6 @@ o.add_option('-m', '--model', dest='model', default='mod',
     help="The model of the foreground wedge to use.  Three options are 'pess' (all k modes inside horizon + buffer are excluded, and all baselines are added incoherently), 'mod' (all k modes inside horizon + buffer are excluded, but all baselines within a uv pixel are added coherently), and 'opt' (all modes k modes inside the primary field of view are excluded).  See Pober et al. 2014 for more details.")
 o.add_option('-b', '--buff', dest='buff', default=0.1, type=float,
     help="The size of the additive buffer outside the horizon to exclude in the pessimistic and moderate models.")
-o.add_option('-f', '--freq', dest='freq', default=.135, type=float,
-    help="The center frequency of the observation in GHz.  If you change from the default, be sure to use a sensible power spectrum model from that redshift.  Note that many values in the code are calculated relative to .150 GHz and are not affected by changing this value.")
 o.add_option('--eor', dest='eor', default='ps_no_halos_nf0.521457_z9.50_useTs0_zetaX-1.0e+00_200_400Mpc_v2',
     help="The model epoch of reionization power spectrum.  The code is built to handle output power spectra from 21cmFAST.")
 o.add_option('--ndays', dest='ndays', default=180., type=float,
@@ -82,15 +80,15 @@ else:
 
 h = 0.7
 B = opts.bwidth
-z = f2z(opts.freq)
+z = f2z(array['freq'])
 
-dish_size_in_lambda = dish_size_in_lambda*(opts.freq/.150) # linear frequency evolution, relative to 150 MHz
+dish_size_in_lambda = dish_size_in_lambda*(array['freq']/.150) # linear frequency evolution, relative to 150 MHz
 first_null = 1.22/dish_size_in_lambda #for an airy disk, even though beam model is Gaussian
 bm = 1.13*(2.35*(0.45/dish_size_in_lambda))**2
 nchan = opts.nchan
 kpls = dk_deta(z) * n.fft.fftfreq(nchan,B/nchan)
 
-Tsky = 60e3 * (3e8/(opts.freq*1e9))**2.55  # sky temperature in mK
+Tsky = 60e3 * (3e8/(array['freq']*1e9))**2.55  # sky temperature in mK
 n_lstbins = opts.n_per_day*60./obs_duration
 
 #===============================EOR MODEL===================================
@@ -132,8 +130,8 @@ for iu,iv in zip(nonzero[1], nonzero[0]):
    kpr = umag * dk_du(z)
    kprs.append(kpr)
    #calculate horizon limit for baseline of length umag
-   if opts.model in ['mod','pess']: hor = dk_deta(z) * umag/opts.freq + opts.buff
-   elif opts.model in ['opt']: hor = dk_deta(z) * (umag/opts.freq)*n.sin(first_null/2)
+   if opts.model in ['mod','pess']: hor = dk_deta(z) * umag/array['freq'] + opts.buff
+   elif opts.model in ['opt']: hor = dk_deta(z) * (umag/array['freq'])*n.sin(first_null/2)
    else: print '%s is not a valid foreground model; Aborting...' % opts.model; sys.exit()
    if not sense.has_key(kpr): 
        sense[kpr] = n.zeros_like(kpls)
@@ -180,7 +178,7 @@ for ind,kbin in enumerate(sense1d):
     Tsense1d[ind] = Tsense1d[ind]**-.5
 
 #save results to output npz
-n.savez('%s_%s_%.3f.npz' % (name,opts.model,opts.freq),ks=kmag,errs=sense1d,T_errs=Tsense1d)
+n.savez('%s_%s_%.3f.npz' % (name,opts.model,array['freq']),ks=kmag,errs=sense1d,T_errs=Tsense1d)
 
 #calculate significance with least-squares fit of amplitude
 A = p21(kmag)
