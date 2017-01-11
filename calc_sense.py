@@ -26,6 +26,13 @@ o.add_option('--no_ns', dest='no_ns', action='store_true',
     help="Remove pure north/south baselines (u=0) from the sensitivity calculation.  These baselines can potentially have higher systematics, so excluding them represents a conservative choice.")
 opts, args = o.parse_args(sys.argv[1:])
 
+#==================COSMOLOGICAL/PHYSICAL PARAMETER VALUES=====================
+
+c = 299792.458 #km/s
+omega_m=0.266 #omega matter
+omega_l=0.734 #omega comsological constant
+h = 0.7
+
 #=========================COSMOLOGY/BINNING FUNCTIONS=========================
 
 #Convert frequency (GHz) to redshift for 21cm line.
@@ -35,13 +42,20 @@ def f2z(fq):
 
 #Multiply by this to convert an angle on the sky to a transverse distance in Mpc/h at redshift z
 def dL_dth(z):
-    '''[h^-1 Mpc]/radian, from Furlanetto et al. (2006)'''
-    return 1.9 * (1./a.const.arcmin) * ((1+z) / 10.)**.2
+    '''[h^-1 Mpc]/radian, from BAOBAB paper'''
+    dz = 0.001
+    zs = n.arange(0,z,dz)
+    X = n.sum((c/H(zs))*dz) * h
+    return X
 
 #Multiply by this to convert a bandwidth in GHz to a line of sight distance in Mpc/h at redshift z
-def dL_df(z, omega_m=0.266):
-    '''[h^-1 Mpc]/GHz, from Furlanetto et al. (2006)'''
-    return (1.7 / 0.1) * ((1+z) / 10.)**.5 * (omega_m/0.15)**-0.5 * 1e3
+def dL_df(z, omega_m=omega_m, omega_l=omega_l):
+    '''[h^-1 Mpc]/GHz, from BAOBAB paper'''
+    return 3e3 * (1+z)**2 / (n.sqrt(omega_m * (1+z)**3 + omega_l)) * h
+
+#Calculate the Hubble constant
+def H(z, omega_m=omega_m, omega_l=omega_l):
+    return 100 * h * n.sqrt(omega_m*(1+z)**3 + omega_l)
 
 #Multiply by this to convert a baseline length in wavelengths (at the frequency corresponding to redshift z) into a tranverse k mode in h/Mpc at redshift z
 def dk_du(z):
@@ -78,7 +92,6 @@ if opts.model == 'pess':
 else:
     uv_coverage = array['uv_coverage']
 
-h = 0.7
 B = opts.bwidth
 z = f2z(array['freq'])
 
