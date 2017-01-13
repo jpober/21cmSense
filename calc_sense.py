@@ -133,8 +133,6 @@ uv_coverage[:,:SIZE/2] = 0.
 uv_coverage[SIZE/2:,SIZE/2] = 0.
 if opts.no_ns: uv_coverage[:,SIZE/2] = 0.
 
-
-
 #loop over uv_coverage to calculate k_pr
 nonzero = n.where(uv_coverage > 0)
 for iu,iv in zip(nonzero[1], nonzero[0]):
