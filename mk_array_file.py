@@ -29,7 +29,7 @@ def beamgridder(xcen,ycen,size):
     if round(ycen) > size - 1 or round(xcen) > size - 1 or ycen < 0. or xcen <0.: 
         return beam
     else:
-        beam[round(ycen),round(xcen)] = 1. #single pixel gridder
+        beam[int(round(ycen)),int(round(xcen))] = 1. #single pixel gridder
         return beam
 
 #==============================READ ARRAY PARAMETERS=========================
@@ -94,7 +94,7 @@ if opts.bl_max:
     print 'The longest baseline being included is %.2f m' % (bl_len_max*(a.const.c/(ref_fq*1e11)))
 
 #grid each baseline type into uv plane
-dim = n.round(bl_len_max/dish_size_in_lambda)*2 + 1 # round to nearest odd
+dim = int(n.round(bl_len_max/dish_size_in_lambda)*2 + 1) # round to nearest odd
 uvsum,quadsum = n.zeros((dim,dim)), n.zeros((dim,dim)) #quadsum adds all non-instantaneously-redundant baselines incoherently
 for cnt, uvbin in enumerate(uvbins):
     print 'working on %i of %i uvbins' % (cnt+1, len(uvbins))
