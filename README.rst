@@ -1,0 +1,105 @@
+21cmSense
+=========
+
+A python package for calculating the expected sensitivities of 21cm experiments
+to the Epoch of Reionization power spectrum.  For details of the observing
+strategy assumed by this code, and other relevant scientific information, please
+see Pober et al. 2013AJ....145...65P and Pober et al. 2014ApJ...782...66P.
+
+Installation
+------------
+Dependencies are
+
+- numpy
+- scipy
+- aipy
+
+Of these, only ``aipy`` should be required to be installed manually. If using
+conda, this can be done using::
+
+    $ conda install -c conda-force aipy
+
+Currently it seems that installing aipy via pip on python 3 results in errors.
+
+To install this package, after installing aipy, run ``pip install .`` in the
+top-level directory of the repository.
+
+Usage
+-----
+There are two main code pieces: mk_array_file.py and calc_sense.py.
+The array files produced by mk_array_file are the inputs to calc_sense.py.
+The inputs to mk_array_file.py are calibration files, which are also python
+scripts, but not executable.  Each of these components will be described in turn.
+
+Calibration Files
+~~~~~~~~~~~~~~~~~
+
+These files will contain all the information about the array you are trying to
+calculate sensitivities for.  Most importantly, they contain the positions of
+all the antennas, but also information about the antenna size and system
+temperature.  An example calibration file for use with this package has been
+included: hera127.py.  To modify for other arrays, you should only need to
+change the values in the "ARRAY SPECIFIC PARAMETERS" section.
+
+mk_array_file
+~~~~~~~~~~~~~
+
+This code takes calibration files as input (note that when calling a
+calibration file from the command line, one needs to omit the '.py' on the end),
+and returns a .npz file that can be read by calc_sense.py.  As it stands,
+this code should require no user modification for a drift scan with any
+antenna array.  For a tracked scan, the opts.track keyword should be set to the
+length of the track in hours.  Note that no correction is made for the dipole
+beam of phased array tiles while tracking.  Therefore, this calculation will
+break down for very long tracks.  The opts.bl_max keyword can also be specified
+to set a maximum size of the uv plane simulated (by default the longest baseline
+in the array is always included).  This can be useful for speeding up
+calculations where outrigger antennas greatly increase the size of the uv
+plane but provide little EoR sensitivity.
+
+calc_sense
+~~~~~~~~~~
+
+This is the main portion of the package.  To run with defaults, it should only
+need an array file as input.  Through the command line, the user can change the
+foreground avoidance/subtraction model, the observing frequency, the epoch of
+reionization model (which is required to calculate sample variance), and the
+total observing time.   A redshift 9.5 ~50% ionization model produced by
+21cmFAST has been included.  The code can natively handle any power spectrum
+output from 21cmFAST, but should be easily modifiable to include other models.
+Since the calculated sensitivities are for a single frequency, one should
+change the observing frequency if one uses a power spectrum from a redshift
+other than the default (z = 9.5).  Changing more detailed parameters, like the
+sky temperature model, will require editing of the code itself.  The code also
+now contains the ``opts.no_ns`` option, which excludes the u = 0 column of the
+uv plane; this effectively removes north/south oriented baselines from the
+sensitivity ccalculation, which can be corrupted by systematics due to their
+low fringe rate.
+
+
+utils
+~~~~~
+The utils submodule contains the following functions:
+
+``load_noise_files``:
+    function call: load_noise_files(filenames, verbose=False, polyfit_deg=3)
+    polyfit_deg is the degree of the polynomial used to fit the T_errs read from
+    calc_sense.py output. (Default 3)
+    This function accepts a list (or glob) of filenames of the calc_sense.py
+    output and returns:frequenceis [MHz], k magnitudes(hMpc^(-1)), and
+    sensititivity estimates. Each retruned item is a list ordered by increasing
+    frequency.
+
+noise_interp2d:
+    fucntion call: noise_interp2d( frequencies, k-values, T_errs, interp_kind='linear', verbose=False,**kwargs)
+    interp_kind is passed to scipy.interpolate.interp2d accepts ['linear','cubic','quintic']. All **kwargs passed to scipy.interpolate.interp2d
+    Creates a interpolation grid over  k magnitude (hMpc^(-1)) and Frequencies
+    (MHz) using the output of load_noise_files. This can be used to sample
+    expected sensitivity between frequency values give to calc_sense.py as input.
+
+
+Acknowledgment
+--------------
+If you use this code in any of your work, please acknowledge
+Pober et al. 2013AJ....145...65P and Pober et al. 2014ApJ...782...66P and
+provide a link to this repository.
