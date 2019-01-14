@@ -15,7 +15,7 @@ from . import array_definition as arrdef
 import tqdm
 
 def beamgridder(xcen, ycen, size):
-    cen = size / 2. - 0.5  # correction for centering
+    cen = size // 2 - 0.5  # correction for centering
     xcen += cen
     ycen = -1 * ycen + cen
     beam = np.zeros((size, size))
@@ -79,6 +79,7 @@ def grid_baselines(aa, bl_len_max, dish_size_in_lambda, obs_zen, times, uvbins, 
         np.zeros((dim, dim)),
         np.zeros((dim, dim)),
     )  # quadsum adds all non-instantaneously-redundant baselines incoherently
+
     for cnt, uvbin in enumerate(
             tqdm.tqdm(uvbins, desc="gridding baselines", unit='uv-bins', disable=not report)
     ):
@@ -96,10 +97,12 @@ def grid_baselines(aa, bl_len_max, dish_size_in_lambda, obs_zen, times, uvbins, 
                 ycen=v[0,0] / dish_size_in_lambda,
                 size=dim,
             )
+
             uvplane += nbls * _beam
             uvsum += nbls * _beam
         quadsum += (uvplane) ** 2
     quadsum = quadsum ** 0.5
+
     return quadsum, uvsum
 
 
@@ -183,4 +186,5 @@ def get_array_specs(calfile, bl_max, bl_min, freq, t_int=60.0, track=None, repor
 
     bl_len_max, bl_len_min, uvbins = get_redundant_baselines(aa, bl_max, bl_min, obs_zen, ref_fq, report=report)
     quadsum, uvsum = grid_baselines(aa, bl_len_max, dish_size_in_lambda, obs_zen, times, uvbins, report=report)
+
     return bl_len_max, bl_len_min, dish_size_in_lambda, obs_duration, prms, quadsum, uvsum

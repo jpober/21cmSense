@@ -69,8 +69,7 @@ def calculate_sensitivity_2d(uv_coverage, freq, p21, n_per_day,
     mink = p21.x.min()
     maxk = p21.x.max()
 
-    if np.isscalar(dish_size_in_lambda):
-        dish_size_in_lambda *= freq / 0.15
+    dish_size_in_lambda *= freq / 0.15
 
     bm = 1.13 * (2.35 * (0.45 / dish_size_in_lambda)) ** 2
     Tsky = 60e3 * (3e8 / (freq * 1e9)) ** 2.55
@@ -81,6 +80,7 @@ def calculate_sensitivity_2d(uv_coverage, freq, p21, n_per_day,
 
     z = conv.f2z(freq)
     kpls = conv.dk_deta(z) * np.fft.fftfreq(n_channels, bandwidth / n_channels)
+
 
     # set up blank arrays/dictionaries
     kprs = []
