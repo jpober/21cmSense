@@ -12,7 +12,9 @@ import yaml
 
 from . import antpos
 from . import array_definition as arrdef
+from . import conversions as conv
 import tqdm
+
 
 def beamgridder(xcen, ycen, size):
     cen = size // 2 - 0.5  # correction for centering
@@ -45,12 +47,12 @@ def get_redundant_baselines(aa, bl_max, bl_min, obs_zen, ref_fq, report=False):
                 bl_len_max = bl_len
             if bl_len < bl_len_min:
                 continue
-            uvbin = "%.1f,%.1f" % (u, v)
+            uvbin = (conv.trunc(u[0,0]), conv.trunc(v[0,0]))
             cnt += 1
             if uvbin not in uvbins:
-                uvbins[uvbin] = ["%i,%i" % (i, j)]
+                uvbins[uvbin] = [(i, j)]
             else:
-                uvbins[uvbin].append("%i,%i" % (i, j))
+                uvbins[uvbin].append((i, j))
     if report:
         print("There are %i baseline types" % len(list(uvbins.keys())))
         print(
@@ -89,8 +91,7 @@ def grid_baselines(aa, bl_len_max, dish_size_in_lambda, obs_zen, times, uvbins, 
             obs_zen.compute(aa)
             bl = uvbins[uvbin][0]
             nbls = len(uvbins[uvbin])
-            i, j = bl.split(",")
-            i, j = int(i), int(j)
+            i, j = bl
             u, v, w = aa.gen_uvw(i, j, src=obs_zen)
             _beam = beamgridder(
                 xcen=u[0,0] / dish_size_in_lambda,

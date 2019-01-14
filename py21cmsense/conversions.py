@@ -46,3 +46,7 @@ def X2Y(z):
 def find_nearest(array, value):
     idx = (np.abs(array - value)).argmin()
     return idx
+
+def trunc(x, ndecimals=0):
+    decade = 10 ** ndecimals
+    return np.trunc(x * decade) / decade
