@@ -30,7 +30,7 @@ def find_version(*file_paths):
 
 setup_args = dict(
     name='py21cmsense',
-    version=find_version("py21cmsense", "__init__"),
+    version=find_version("py21cmsense", "__init__.py"),
     license=read("LICENSE.rst"),
     long_description='%s\n%s' % (
         re.compile('^.. start-badges.*^.. end-badges', re.M | re.S).sub('', read('README.rst')),
@@ -57,13 +57,17 @@ setup_args = dict(
     install_requires=[
         'numpy',
         'scipy',
+        'future',
+        'click',
+        'tqdm',
+        'pyyaml'
     ],
     package_data={"py21cmsense":['data/*']},
-    # entry_points={
-    #     'console_scripts': [
-    #         'py21cmmc = py21cmmc.cli:main',
-    #     ]
-    # },
+    entry_points={
+        'console_scripts': [
+            'sense = py21cmsense.cli:main',
+        ]
+    },
 )
 
 if __name__ == "__main__":

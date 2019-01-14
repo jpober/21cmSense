@@ -1,0 +1,9 @@
+name: hera127
+loc: (38:25:59.24, -79:51:02.1, 0)  # Green Bank, WV
+antpos: hera
+antpos_kw:
+  nside: 7
+  L: 1400
+  dL: 1212
+dish_size_in_lambda: 7.0  # in units of wavelengths at 150 MHz = 2 meters; this will also define the observation duration
+Trx: 1e5  # receiver temp in mK
