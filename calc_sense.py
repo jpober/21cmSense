@@ -13,7 +13,7 @@ o.add_option('-m', '--model', dest='model', default='mod',
 o.add_option('-b', '--buff', dest='buff', default=0.1, type=float,
     help="The size of the additive buffer outside the horizon to exclude in the pessimistic and moderate models.")
 o.add_option('--eor', dest='eor', default='ps_no_halos_nf0.521457_z9.50_useTs0_zetaX-1.0e+00_200_400Mpc_v2',
-    help="The model epoch of reionization power spectrum.  The code is built to handle output power spectra from 21cmFAST.")
+    help="The model epoch of reionization power spectrum.  The code is built to handle output power spectra from 21cmFAST. Passing 'None' will ignore sample variance.")
 o.add_option('--ndays', dest='ndays', default=180., type=float,
     help="The total number of days observed.  The default is 180, which is the maximum a particular R.A. can be observed in one year if one only observes at night.  The total observing time is ndays*n_per_day.")
 o.add_option('--n_per_day', dest='n_per_day', default=6., type=float,
@@ -109,13 +109,14 @@ n_lstbins = opts.n_per_day*60./obs_duration
 #You can change this to have any model you want, as long as mk, mpk and p21 are returned
 
 #This is a dimensionless power spectrum, i.e., Delta^2
-modelfile = opts.eor
-model = n.loadtxt(modelfile)
-mk, mpk = model[:,0]/h, model[:,1] #k, Delta^2(k)
-#note that we're converting from Mpc to h/Mpc
+if opts.eor.lower() != 'none':
+    modelfile = opts.eor
+    model = n.loadtxt(modelfile)
+    mk, mpk = model[:,0]/h, model[:,1] #k, Delta^2(k)
+    #note that we're converting from Mpc to h/Mpc
 
-#interpolation function for the EoR model
-p21 = interpolate.interp1d(mk, mpk, kind='linear')
+    #interpolation function for the EoR model
+    p21 = interpolate.interp1d(mk, mpk, kind='linear')
 
 #=================================MAIN CODE===================================
 
@@ -136,38 +137,44 @@ if opts.no_ns: uv_coverage[:,SIZE/2] = 0.
 #loop over uv_coverage to calculate k_pr
 nonzero = n.where(uv_coverage > 0)
 for iu,iv in zip(nonzero[1], nonzero[0]):
-   u, v = (iu - SIZE/2) * dish_size_in_lambda, (iv - SIZE/2) * dish_size_in_lambda
-   umag = n.sqrt(u**2 + v**2)
-   kpr = umag * dk_du(z)
-   kprs.append(kpr)
-   #calculate horizon limit for baseline of length umag
-   if opts.model in ['mod','pess']: hor = dk_deta(z) * umag/array['freq'] + opts.buff
-   elif opts.model in ['opt']: hor = dk_deta(z) * (umag/array['freq'])*n.sin(first_null/2)
-   else: print '%s is not a valid foreground model; Aborting...' % opts.model; sys.exit()
-   if not sense.has_key(kpr): 
-       sense[kpr] = n.zeros_like(kpls)
-       Tsense[kpr] = n.zeros_like(kpls)
-   for i, kpl in enumerate(kpls):
-       #exclude k_parallel modes contaminated by foregrounds
-       if n.abs(kpl) < hor: continue
-       k = n.sqrt(kpl**2 + kpr**2)
-       if k < min(mk): continue
-       #don't include values beyond the interpolation range (no sensitivity anyway)
-       if k > n.max(mk): continue
-       tot_integration = uv_coverage[iv,iu] * opts.ndays
-       delta21 = p21(k)
-       Tsys = Tsky + Trx
-       bm2 = bm/2. #beam^2 term calculated for Gaussian; see Parsons et al. 2014
-       bm_eff = bm**2 / bm2 # this can obviously be reduced; it isn't for clarity
-       scalar = X2Y(z) * bm_eff * B * k**3 / (2*n.pi**2)
-       Trms = Tsys / n.sqrt(2*(B*1e9)*tot_integration)
-       #add errors in inverse quadrature
-       sense[kpr][i] += 1./(scalar*Trms**2 + delta21)**2
-       Tsense[kpr][i] += 1./(scalar*Trms**2)**2
+    u, v = (iu - SIZE/2) * dish_size_in_lambda, (iv - SIZE/2) * dish_size_in_lambda
+    umag = n.sqrt(u**2 + v**2)
+    kpr = umag * dk_du(z)
+    kprs.append(kpr)
+    #calculate horizon limit for baseline of length umag
+    if opts.model in ['mod','pess']: hor = dk_deta(z) * umag/array['freq'] + opts.buff
+    elif opts.model in ['opt']: hor = dk_deta(z) * (umag/array['freq'])*n.sin(first_null/2)
+    else: print '%s is not a valid foreground model; Aborting...' % opts.model; sys.exit()
+    if not sense.has_key(kpr): 
+        sense[kpr] = n.zeros_like(kpls)
+        Tsense[kpr] = n.zeros_like(kpls)
+    for i, kpl in enumerate(kpls):
+        #exclude k_parallel modes contaminated by foregrounds
+        if n.abs(kpl) < hor: continue
+        k = n.sqrt(kpl**2 + kpr**2)
+        if opts.eor.lower() != 'none':
+            #don't include values beyond the interpolation range (no sensitivity anyway)
+            if k < min(mk): continue
+            if k > n.max(mk): continue
+            delta21 = p21(k)
+        else:
+            delta21 = 0
+        tot_integration = uv_coverage[iv,iu] * opts.ndays
+        Tsys = Tsky + Trx
+        bm2 = bm/2. #beam^2 term calculated for Gaussian; see Parsons et al. 2014
+        bm_eff = bm**2 / bm2 # this can obviously be reduced; it isn't for clarity
+        scalar = X2Y(z) * bm_eff * B * k**3 / (2*n.pi**2)
+        Trms = Tsys / n.sqrt(2*(B*1e9)*tot_integration)
+        #add errors in inverse quadrature
+        sense[kpr][i] += 1./(scalar*Trms**2 + delta21)**2
+        Tsense[kpr][i] += 1./(scalar*Trms**2)**2
 
 #bin the result in 1D
 delta = dk_deta(z)*(1./B) #default bin size is given by bandwidth
-kmag = n.arange(delta,n.max(mk),delta)
+if opts.eor.lower() != 'none':
+    kmag = n.arange(delta,n.max(mk),delta)
+else:
+    kmag = n.arange(delta,(n.max(kprs)**2 + n.max(kpls)**2)**.5,delta)
 
 kprs = n.array(kprs)
 sense1d = n.zeros_like(kmag)
@@ -178,7 +185,8 @@ for ind, kpr in enumerate(sense.keys()):
     Tsense[kpr] = Tsense[kpr]**-.5 / n.sqrt(n_lstbins)
     for i, kpl in enumerate(kpls):
         k = n.sqrt(kpl**2 + kpr**2)
-        if k > n.max(mk): continue
+        if opts.eor.lower() != 'none':
+            if k > n.max(mk): continue
         #add errors in inverse quadrature for further binning
         sense1d[find_nearest(kmag,k)] += 1./sense[kpr][i]**2
         Tsense1d[find_nearest(kmag,k)] += 1./Tsense[kpr][i]**2
@@ -192,15 +200,16 @@ for ind,kbin in enumerate(sense1d):
 n.savez('%s_%s_%.3f.npz' % (name,opts.model,array['freq']),ks=kmag,errs=sense1d,T_errs=Tsense1d)
 
 #calculate significance with least-squares fit of amplitude
-A = p21(kmag)
-M = p21(kmag)
-wA, wM = A * (1./sense1d), M * (1./sense1d)
-wA, wM = n.matrix(wA).T, n.matrix(wM).T
-amp = (wA.T*wA).I * (wA.T * wM)
-#errorbars
-Y = n.float(amp) * wA
-dY = wM - Y
-s2 = (len(wM)-1)**-1 * (dY.T * dY)
-X = n.matrix(wA).T * n.matrix(wA)
-err = n.sqrt((1./n.float(X)))
-print 'total snr = ', amp/err
+if opts.eor.lower() != 'none':
+    A = p21(kmag)
+    M = p21(kmag)
+    wA, wM = A * (1./sense1d), M * (1./sense1d)
+    wA, wM = n.matrix(wA).T, n.matrix(wM).T
+    amp = (wA.T*wA).I * (wA.T * wM)
+    #errorbars
+    Y = n.float(amp) * wA
+    dY = wM - Y
+    s2 = (len(wM)-1)**-1 * (dY.T * dY)
+    X = n.matrix(wA).T * n.matrix(wA)
+    err = n.sqrt((1./n.float(X)))
+    print 'total snr = ', amp/err
