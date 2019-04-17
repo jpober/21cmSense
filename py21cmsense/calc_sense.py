@@ -7,17 +7,22 @@ from __future__ import print_function
 
 from builtins import zip
 
+import attr
 import numpy as np
+import tqdm
+from cached_property import cached_property
 from scipy import interpolate
 
 from . import conversions as conv
-import tqdm
 
-# You can change this to have any model you want, as long as mk, mpk and p21 are returned
 
 def get_eor_ps(k, h=0.7, power=None):
     """
     Generate a callable function for the EoR power spectrum.
+
+    You can change this to have any model you want, as long as mk, mpk and p21
+    are returned
+
 
     Parameters
     ----------
@@ -44,158 +49,228 @@ def get_eor_ps(k, h=0.7, power=None):
     return interpolate.interp1d(k, power, kind="linear")
 
 
-def horizon_limit(umag, z, freq, first_null=None, buffer=0.1, model='moderate'):
-    # calculate horizon limit for baseline of length umag
-    if model in ["moderate", "pessimistic"]:
-        hor = conv.dk_deta(z) * umag / freq + buffer
-    elif model in ["optimistic"]:
-        if first_null is None:
-            raise ValueError("If using optimistic model, require first_null")
-        hor = conv.dk_deta(z) * umag / freq * np.sin(first_null / 2)
+@attr.s
+class Sensitivity:
+    uv_coverage = attr.ib()
+    freq = attr.ib()
+    p21 = attr.ib()
+    n_per_day = attr.ib()
+    obs_duration = attr.ib()
+    dish_size_in_lambda = attr.ib()
+    t_int = attr.ib()
+    Trx = attr.ib()
+    n_channels = attr.ib()
+    bandwidth = attr.ib()
+    n_days = attr.ib(default=1)
+    horizon_buffer = attr.ib(default=0.1)
+    foreground_model = attr.ib(default="moderate")
+    no_ns_baselines = attr.ib(default=False)
 
-    else:
-        raise ValueError("model must be either pessimistic, moderate, or optimistic")
+    @uv_coverage.converter
+    def _uvcov_convert(self, uv_coverage):
+        SIZE = uv_coverage.shape[0]
 
-    return hor
+        # Cut unnecessary data out of uv coverage: auto-correlations & half of uv
+        # plane (which is not statistically independent for real sky)
+        uv_coverage[SIZE // 2, SIZE // 2] = 0.0
+        uv_coverage[:, : SIZE // 2] = 0.0
+        uv_coverage[SIZE // 2:, SIZE // 2] = 0.0
+        if self.no_ns_baselines:
+            uv_coverage[:, SIZE // 2] = 0.0
 
+        return uv_coverage * self.t_int
 
-def calculate_sensitivity_2d(uv_coverage, freq, p21, n_per_day,
-                             obs_duration, dish_size_in_lambda, t_int, Trx,
-                             n_channels, bandwidth,
-                             n_days=1, horizon_buffer=0.1, foreground_model='moderate', no_ns_baselines=False,
-                             report=False):
-    n_lstbins = n_per_day * 60.0/ obs_duration
+    @dish_size_in_lambda.converter
+    def _dsil(self, val):
+        return val * self.freq / 0.15
 
-    mink = p21.x.min()
-    maxk = p21.x.max()
+    @cached_property
+    def n_lstbins(self):
+        return self.n_per_day * 60.0 / self.obs_duration
 
-    dish_size_in_lambda *= freq / 0.15
+    @cached_property
+    def mink(self):
+        return self.p21.x.min()
 
-    bm = 1.13 * (2.35 * (0.45 / dish_size_in_lambda)) ** 2
-    Tsky = 60e3 * (3e8 / (freq * 1e9)) ** 2.55
-    Tsys = Tsky + Trx
+    @cached_property
+    def maxk(self):
+        return self.p21.x.max()
 
-    # for an airy disk, even though beam model is Gaussian
-    first_null = 1.22 / dish_size_in_lambda
+    @cached_property
+    def beam_width(self):
+        return 1.13 * (2.35 * (0.45 / self.dish_size_in_lambda)) ** 2
 
-    z = conv.f2z(freq)
-    kpls = conv.dk_deta(z) * np.fft.fftfreq(n_channels, bandwidth / n_channels)
+    @cached_property
+    def Tsky(self):
+        return 60e3 * (3e8 / (self.freq * 1e9)) ** 2.55
 
+    @cached_property
+    def Tsys(self):
+        return self.Tsky + self.Trx
 
-    # set up blank arrays/dictionaries
-    kprs = []
-    # sense will include sample variance, Tsense will be Thermal only
-    sense, Tsense = {}, {}
+    @cached_property
+    def first_null(self):
+        # for an airy disk, even though beam model is Gaussian
+        return 1.22 / self.dish_size_in_lambda
 
-    uv_coverage *= t_int
-    SIZE = uv_coverage.shape[0]
+    @cached_property
+    def redshift(self):
+        return conv.f2z(self.freq)
 
-    # Cut unnecessary data out of uv coverage: auto-correlations & half of uv
-    # plane (which is not statistically independent for real sky)
-    uv_coverage[SIZE // 2, SIZE // 2] = 0.0
-    uv_coverage[:, : SIZE // 2] = 0.0
-    uv_coverage[SIZE // 2:, SIZE // 2] = 0.0
-    if no_ns_baselines:
-        uv_coverage[:, SIZE // 2] = 0.0
+    @cached_property
+    def kparallel(self):
+        return conv.dk_deta(self.redshift) * np.fft.fftfreq(self.n_channels, self.bandwidth / self.n_channels)
 
-    # loop over uv_coverage to calculate k_pr
-    nonzero = np.where(uv_coverage > 0)
-    for iu, iv in tqdm.tqdm(zip(nonzero[1], nonzero[0]), desc="calculating 2D sensitivity", unit='uv-bins', disable=not report):
-        u, v = (
-            (iu - SIZE // 2) * dish_size_in_lambda,
-            (iv - SIZE // 2) * dish_size_in_lambda,
-        )
-        umag = np.sqrt(u ** 2 + v ** 2)
-        k_perp = umag * conv.dk_du(z)
-        kprs.append(k_perp)
+    @cached_property
+    def beam_width_sq(self):
+        # beam^2 term calculated for Gaussian; see Parsons et al. 2014
+        return self.beam_width / 2
 
-        hor = horizon_limit(
-            umag=umag,
-            z=z,
-            freq=freq,
-            first_null=first_null,
-            buffer=horizon_buffer,
-            model=foreground_model
-        )
+    @cached_property
+    def beam_eff(self):
+        return self.beam_width ** 2 / self.beam_width_sq
 
-        if k_perp not in sense:
-            sense[k_perp] = np.zeros_like(kpls)
-            Tsense[k_perp] = np.zeros_like(kpls)
+    @cached_property
+    def tot_integration(self):
+        return self.uv_coverage * self.n_days
 
-        for i, k_par in enumerate(kpls):
-            # exclude k_parallel modes contaminated by foregrounds
-            if np.abs(k_par) < hor:
-                continue
-            k = np.sqrt(k_par ** 2 + k_perp ** 2)
-            if k < mink or k > maxk:
-                continue
+    @cached_property
+    def Trms(self):
+        return self.Tsys / np.sqrt(2 * (self.bandwidth * 1e9) * self.tot_integration)
 
-            tot_integration = uv_coverage[iv, iu] * n_days
+    @cached_property
+    def X2Y(self):
+        return conv.X2Y(self.redshift)
 
-            delta21 = p21(k)
-            bm2 = bm / 2.0  # beam^2 term calculated for Gaussian; see Parsons et al. 2014
-            bm_eff = bm ** 2 / bm2  # this can obviously be reduced; it isn't for clarity
+    def power_normalisation(self, k):
+        return self.X2Y * self.beam_eff * self.bandwidth * k ** 3 / (2 * np.pi ** 2)
 
-            scalar = conv.X2Y(z) * bm_eff * bandwidth * k ** 3 / (2 * np.pi ** 2)
-            Trms = Tsys / np.sqrt(2 * (bandwidth * 1e9) * tot_integration)
+    @cached_property
+    def ubins(self):
+        size = self.uv_coverage.shape[0]
+        return (np.arange(size) - size // 2) * self.dish_size_in_lambda
 
-            # add errors in inverse quadrature
-            sense[k_perp][i] += 1.0 / (scalar * Trms ** 2 + delta21) ** 2
-            Tsense[k_perp][i] += 1.0 / (scalar * Trms ** 2) ** 2
+    @cached_property
+    def k1d(self):
+        delta = conv.dk_deta(self.redshift) * (1.0 / self.bandwidth)  # default bin size is given by bandwidth
+        return np.arange(delta, self.maxk, delta)
 
-    # errors were added in inverse quadrature, now need to invert and take
-    # square root to have error bars; also divide errors by number of indep. fields
-    for k_perp in sense.keys():
-        mask = sense[k_perp] > 0
-        sense[k_perp][mask] = sense[k_perp][mask] ** -0.5 / np.sqrt(n_lstbins)
-        sense[k_perp][~mask] = np.inf
-        Tsense[k_perp][mask] = Tsense[k_perp][mask] ** -0.5 / np.sqrt(n_lstbins)
-        Tsense[k_perp][~mask] = np.inf
+    def thermal_noise(self, k_par, k_perp):
+        k = np.sqrt(k_par ** 2 + k_perp ** 2)
 
-    return kpls, sense, Tsense
+        scalar = self.power_normalisation(k)
 
+        # add errors in inverse quadrature
+        return scalar * self.Trms ** 2
 
-def average_sensitivity_to_1d(sense, Tsense, maxk, bandwidth, freq, kpls, report=False):
-    z = conv.f2z(freq)
+    def sample_noise(self, k_par, k_perp):
+        k = np.sqrt(k_par ** 2 + k_perp ** 2)
+        if k < self.mink or k > self.maxk:
+            return np.inf
 
-    # bin the result in 1D
-    delta = conv.dk_deta(z) * (1.0 / bandwidth)  # default bin size is given by bandwidth
-    kmag = np.arange(delta, maxk, delta)
-    sense1d = np.zeros_like(kmag)
-    Tsense1d = np.zeros_like(kmag)
-    for ind, kpr in enumerate(tqdm.tqdm(sense.keys(), desc='averaging to 1D', unit='kpar bins', disable=not report)):
-        for i, kpl in enumerate(kpls):
-            k = np.sqrt(kpl ** 2 + kpr ** 2)
-            if k > maxk:
-                continue
+        return self.p21(k)
 
-            # add errors in inverse quadrature for further binning
-            sense1d[conv.find_nearest(kmag, k)] += 1.0 / sense[kpr][i] ** 2
-            Tsense1d[conv.find_nearest(kmag, k)] += 1.0 / Tsense[kpr][i] ** 2
+    def calculate_sensitivity_2d(self, report=False, sources=['thermal', 'sample']):
 
-    # invert errors and take square root again for final answer
-    for ind, kbin in enumerate(sense1d):
-        sense1d[ind] = kbin ** -0.5 if kbin else np.inf
-        Tsense1d[ind] = Tsense1d[ind] ** -0.5 if Tsense1d[ind] else np.inf
+        # set up blank arrays/dictionaries
+        kprs = []
+        sense = {}
 
-    return kmag, sense1d, Tsense1d
+        # loop over uv_coverage to calculate k_pr
+        nonzero = np.where(self.uv_coverage > 0)
+        for iu, iv in tqdm.tqdm(zip(nonzero[1], nonzero[0]), desc="calculating 2D sensitivity", unit='uv-bins',
+                                disable=not report):
+            u, v = self.ubins[iu], self.ubins[iv]
 
+            umag = np.sqrt(u ** 2 + v ** 2)
+            k_perp = umag * conv.dk_du(self.redshift)
+            kprs.append(k_perp)
 
-def calculate_significance(sense1d, p21, kmag):
-    """
-    calculate significance with least-squares fit of amplitude
+            hor = self.horizon_limit(umag)
 
-    Returns
-    -------
+            if k_perp not in sense:
+                sense[k_perp] = np.zeros_like(self.kparallel)
 
-    """
-    A = p21(kmag)
-    M = p21(kmag)
-    wA, wM = A * (1.0 / sense1d), M * (1.0 / sense1d)
-    wA, wM = np.matrix(wA).T, np.matrix(wM).T
-    amp = (wA.T * wA).I * (wA.T * wM)
+            for i, k_par in enumerate(self.kparallel):
+                # exclude k_parallel modes contaminated by foregrounds
+                if np.abs(k_par) < hor:
+                    continue
 
-    # errorbars
-    X = np.matrix(wA).T * np.matrix(wA)
-    err = np.sqrt((1.0 / np.float(X)))
-    return amp / err
+                val = 0
+                for source in sources:
+                    if len(source) == 2 and hasattr(source[0], "__len__"):
+                        val += source[1](self, k_par, k_perp)
+                    else:
+                        val += getattr(self, source + "_noise")(k_par, k_perp)
+
+                    sense[k_perp][i] += 1.0 / val ** 2
+
+        # errors were added in inverse quadrature, now need to invert and take
+        # square root to have error bars; also divide errors by number of indep. fields
+        for k_perp in sense.keys():
+            mask = sense[k_perp] > 0
+            sense[k_perp][mask] = sense[k_perp][mask] ** -0.5 / np.sqrt(self.n_lstbins)
+            sense[k_perp][~mask] = np.inf
+
+        return sense
+
+    def horizon_limit(self, umag):
+        # calculate horizon limit for baseline of length umag
+        if self.foreground_model in ["moderate", "pessimistic"]:
+            return conv.dk_deta(self.redshift) * umag / self.freq + self.horizon_buffer
+        elif self.foreground_model in ["optimistic"]:
+            return conv.dk_deta(self.redshift) * umag / self.freq * np.sin(self.first_null / 2)
+
+    def _average_sense_to_1d(self, sense, report=False):
+
+        # bin the result in 1D
+
+        sense1d = np.zeros_like(self.k1d)
+
+        for ind, kpr in enumerate(
+                tqdm.tqdm(sense.keys(), desc='averaging to 1D', unit='kpar bins', disable=not report)):
+            for i, kpl in enumerate(self.kparallel):
+                k = np.sqrt(kpl ** 2 + kpr ** 2)
+                if k > self.maxk:
+                    continue
+
+                # add errors in inverse quadrature for further binning
+                sense1d[conv.find_nearest(self.k1d, k)] += 1.0 / sense[kpr][i] ** 2
+
+        # invert errors and take square root again for final answer
+        for ind, kbin in enumerate(sense1d):
+            sense1d[ind] = kbin ** -0.5 if kbin else np.inf
+
+        return sense1d
+
+    def calculate_sensitivity_1d(self, sense=None, report=None, sources=None):
+        if sense is None:
+            sense = self.calculate_sensitivity_2d(report=None, sources=sources)
+
+        return self._average_sense_to_1d(sense, report=report)
+
+    def calculate_significance(self, sense1d=None, report=True, sources=['thermal', 'sample']):
+        """
+        calculate significance with least-squares fit of amplitude
+
+        Returns
+        -------
+
+        """
+        if self.p21 is None:
+            raise NotImplementedError("significance is not possible without an input 21cm power spectrum")
+
+        if sense1d is None:
+            sense1d = self.calculate_sensitivity_2d(report=report, sources=sources)
+
+        A = self.p21(self.k1d)
+        M = self.p21(self.k1d)
+
+        wA, wM = A * (1.0 / sense1d), M * (1.0 / sense1d)
+        wA, wM = np.matrix(wA).T, np.matrix(wM).T
+        amp = (wA.T * wA).I * (wA.T * wM)
+
+        # errorbars
+        X = np.matrix(wA).T * np.matrix(wA)
+        err = np.sqrt((1.0 / np.float(X)))
+        return amp / err

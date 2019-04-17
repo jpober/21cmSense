@@ -201,7 +201,7 @@ def calc_sense(array_file, model, buffer, eor_ps_file, n_days, n_per_day, bandwi
         eor_ps_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data/ps_no_halos_nf0.521457_z9.50_useTs0_zetaX-1.0e+00_200_400Mpc_v2")
     eor_ps = cs.get_eor_ps(eor_ps_file, h=hubble)
 
-    kpls, sense, Tsense = cs.calculate_sensitivity_2d(
+    sensitivity = cs.Sensitivity(
         uv_coverage=uv_coverage,
         freq=array['freq'],
         p21=eor_ps,
@@ -216,17 +216,10 @@ def calc_sense(array_file, model, buffer, eor_ps_file, n_days, n_per_day, bandwi
         horizon_buffer=buffer,
         foreground_model=model,
         no_ns_baselines=not ns,
-        report=True
     )
 
-    kmag, sense1d, Tsense1d = cs.average_sensitivity_to_1d(
-        sense, Tsense,
-        maxk=eor_ps.x.max(),
-        bandwidth=bandwidth,
-        freq=array['freq'],
-        kpls=kpls,
-        report=True
-    )
+    sense1d = sensitivity.calculate_sensitivity_1d()
+    sense1d_thermal_only = sensitivity.calculate_sensitivity_1d(sources=['thermal'])
 
     # save results to output npz
     np.savez(
@@ -234,11 +227,11 @@ def calc_sense(array_file, model, buffer, eor_ps_file, n_days, n_per_day, bandwi
             direc,
             "{name}_{model}_{freq:.3f}.npz".format(name=name, model=model, freq=array["freq"])
         ),
-        ks=kmag,
+        ks=sensitivity.k1d,
         errs=sense1d,
-        T_errs=Tsense1d,
+        T_errs=sense1d_thermal_only,
     )
 
     if write_significance:
-        sig = cs.calculate_significance(sense1d, eor_ps, kmag)
+        sig = sensitivity.calculate_significance(sense1d)
         print("Significance of detection: ", sig)
