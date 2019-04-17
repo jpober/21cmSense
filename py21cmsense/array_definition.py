@@ -1,6 +1,8 @@
 from __future__ import division
-from builtins import str
+
 from builtins import range
+from builtins import str
+
 import aipy as aipy
 import numpy as np
 
@@ -62,7 +64,7 @@ class AntennaArray(aipy.pol.AntennaArray):
             if param == "dish_size_in_lambda":
                 FWHM = 2.35 * (0.45 / prms[param])  # radians
                 self.array_params["obs_duration"] = (
-                    60.0 * FWHM / (15.0 * aipy.const.deg)
+                        60.0 * FWHM / (15.0 * aipy.const.deg)
                 )  # minutes it takes the sky to drift through beam FWHM
             if param == "antpos":
                 bl_lens = np.sum(np.array(prms[param]) ** 2, axis=1) ** 0.5
