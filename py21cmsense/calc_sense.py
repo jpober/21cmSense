@@ -10,10 +10,14 @@ from builtins import zip
 import attr
 import numpy as np
 import tqdm
+from astropy import constants as cnst
+from astropy import units
+from attr import validators as vld
 from cached_property import cached_property
 from scipy import interpolate
 
 from . import conversions as conv
+from ._utils import apply_or_convert_unit
 
 
 def get_eor_ps(k, h=0.7, power=None):
@@ -49,44 +53,52 @@ def get_eor_ps(k, h=0.7, power=None):
     return interpolate.interp1d(k, power, kind="linear")
 
 
-@attr.s
+@attr.s(kw_only=True)
 class Sensitivity:
-    uv_coverage = attr.ib()
-    freq = attr.ib()
+    _uv_coverage = attr.ib(validator=vld.instance_of(np.ndarray))
+    _ubins = attr.ib()
+    freq = attr.ib(converter=apply_or_convert_unit("MHz"), validator=_positive)
     p21 = attr.ib()
-    n_per_day = attr.ib()
-    obs_duration = attr.ib()
-    dish_size_in_lambda = attr.ib()
-    t_int = attr.ib()
-    Trx = attr.ib()
-    n_channels = attr.ib()
-    bandwidth = attr.ib()
-    n_days = attr.ib(default=1)
-    horizon_buffer = attr.ib(default=0.1)
-    foreground_model = attr.ib(default="moderate")
-    no_ns_baselines = attr.ib(default=False)
+    n_per_day = attr.ib(converter=float, validator=_positive)
+    obs_duration = attr.ib(converter=apply_or_convert_unit("s"), validator=_positive)
+    integration_time = attr.ib(converter=apply_or_convert_unit('s'), validator=_positive)
+    Trcv = attr.ib(convert=apply_or_convert_unit("K"), validator=_nonnegative)
+    n_channels = attr.ib(converter=int, validator=_positive)
+    bandwidth = attr.ib(converter=apply_or_convert_unit("MHz"), validator=_positive)
+    n_days = attr.ib(default=1, converter=float, validator=_positive)
+    horizon_buffer = attr.ib(default=0.1, converter=float, validator=_nonnegative)
+    foreground_model = attr.ib(default="moderate",
+                               validator=vld.in_(['pessimistic', 'moderate', 'optimistic']))
+    no_ns_baselines = attr.ib(default=False, converter=bool)
+    reference_freq = attr.ib(150, converter=apply_or_convert_unit("MHz"), validator=_positive)
 
-    @uv_coverage.converter
-    def _uvcov_convert(self, uv_coverage):
-        SIZE = uv_coverage.shape[0]
+    @cached_property
+    def uv_coverage(self):
+        uv = self._uv_coverage.copy()
+
+        SIZE = uv.shape[0]
 
         # Cut unnecessary data out of uv coverage: auto-correlations & half of uv
         # plane (which is not statistically independent for real sky)
-        uv_coverage[SIZE // 2, SIZE // 2] = 0.0
-        uv_coverage[:, : SIZE // 2] = 0.0
-        uv_coverage[SIZE // 2:, SIZE // 2] = 0.0
+        uv[SIZE // 2, SIZE // 2] = 0.0
+        uv[:, : SIZE // 2] = 0.0
+        uv[SIZE // 2:, SIZE // 2] = 0.0
+
         if self.no_ns_baselines:
-            uv_coverage[:, SIZE // 2] = 0.0
+            uv[:, SIZE // 2] = 0.0
 
-        return uv_coverage * self.t_int
+        return uv * self.integration_time
 
-    @dish_size_in_lambda.converter
-    def _dsil(self, val):
-        return val * self.freq / 0.15
+    @cached_property
+    def dish_size_in_lambda(self):
+        if not hasattr(self._dish_size, "unit"):
+            return self._dish_size * self.freq / self.reference_freq
+        else:
+            return (self._dish_size * self.freq / cnst.c).to("")
 
     @cached_property
     def n_lstbins(self):
-        return self.n_per_day * 60.0 / self.obs_duration
+        return self.n_per_day * 60.0*units.s / self.obs_duration
 
     @cached_property
     def mink(self):
@@ -102,11 +114,11 @@ class Sensitivity:
 
     @cached_property
     def Tsky(self):
-        return 60e3 * (3e8 / (self.freq * 1e9)) ** 2.55
+        return 60e3 * (cnst.c / self.freq / units.m) ** 2.55
 
     @cached_property
     def Tsys(self):
-        return self.Tsky + self.Trx
+        return self.Tsky + self.Trcv
 
     @cached_property
     def first_null(self):

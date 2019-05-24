@@ -60,7 +60,8 @@ setup_args = dict(
         'future',
         'click',
         'tqdm',
-        'pyyaml'
+        'pyyaml',
+        'astropy'
     ],
     package_data={"py21cmsense":['data/*']},
     entry_points={
