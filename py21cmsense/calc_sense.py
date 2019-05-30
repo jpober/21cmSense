@@ -12,13 +12,14 @@ import numpy as np
 import tqdm
 from astropy import constants as cnst
 from astropy import units
-from attr import validators as vld
+from attr import validators as vld, converters as cnv
 from cached_property import cached_property
 from scipy import interpolate
 
 from . import conversions as conv
 from ._utils import apply_or_convert_unit
-
+from . import observatory as obs
+from . import _utils as ut
 
 def get_eor_ps(k, h=0.7, power=None):
     """
@@ -55,46 +56,62 @@ def get_eor_ps(k, h=0.7, power=None):
 
 @attr.s(kw_only=True)
 class Sensitivity:
-    _uv_coverage = attr.ib(validator=vld.instance_of(np.ndarray))
+    observatory = attr.ib(validator=vld.instance_of(obs.Observatory))
     _ubins = attr.ib()
-    freq = attr.ib(converter=apply_or_convert_unit("MHz"), validator=_positive)
+    freq = attr.ib(converter=apply_or_convert_unit("MHz"), validator=ut.positive)
     p21 = attr.ib()
-    n_per_day = attr.ib(converter=float, validator=_positive)
-    obs_duration = attr.ib(converter=apply_or_convert_unit("s"), validator=_positive)
-    integration_time = attr.ib(converter=apply_or_convert_unit('s'), validator=_positive)
-    Trcv = attr.ib(convert=apply_or_convert_unit("K"), validator=_nonnegative)
-    n_channels = attr.ib(converter=int, validator=_positive)
-    bandwidth = attr.ib(converter=apply_or_convert_unit("MHz"), validator=_positive)
-    n_days = attr.ib(default=1, converter=float, validator=_positive)
-    horizon_buffer = attr.ib(default=0.1, converter=float, validator=_nonnegative)
+    n_per_day = attr.ib(converter=float, validator=ut.positive)
+    obs_duration = attr.ib(default=None, converter=cnv.optional(apply_or_convert_unit("min")),
+                           validator=vld.optional(ut.positive))
+    integration_time = attr.ib(converter=apply_or_convert_unit('s'), validator=ut.positive)
+    Trcv = attr.ib(convert=apply_or_convert_unit("K"), validator=ut.nonnegative)
+    n_channels = attr.ib(converter=int, validator=ut.positive)
+    bandwidth = attr.ib(converter=apply_or_convert_unit("MHz"), validator=ut.positive)
+    n_days = attr.ib(default=1, converter=int, validator=ut.positive)
+    horizon_buffer = attr.ib(default=0.1, converter=float, validator=ut.nonnegative)
+    redundancy_tol = attr.ib(default=0, converter=int, validator=ut.nonnegative)
     foreground_model = attr.ib(default="moderate",
                                validator=vld.in_(['pessimistic', 'moderate', 'optimistic']))
+    bl_min = attr.ib(default=0, converter=ut.apply_or_convert_unit("m"), validator=ut.nonnegative)
+    bl_max = attr.ib(default=np.inf, converter=ut.apply_or_convert_unit('m'), validator=ut.nonnegative)
     no_ns_baselines = attr.ib(default=False, converter=bool)
-    reference_freq = attr.ib(150, converter=apply_or_convert_unit("MHz"), validator=_positive)
+
+    def get_uvbins(self, report=False):
+        return self.observatory.get_redundant_baselines(
+            bl_min=self.bl_min, bl_max=self.bl_max,
+            ref_fq=self.freq, ndecimals=self.redundancy_tol,
+            report=report)[-1]
+
+    def get_blmax_from_uvbins(self, uvbins):
+        return np.max([uv[-1] for uv in uvbins.keys()])
 
     @cached_property
     def uv_coverage(self):
-        uv = self._uv_coverage.copy()
+        uvbins = self.get_uvbins()
+        bl_max = self.get_blmax_from_uvbins(uvbins)
 
-        SIZE = uv.shape[0]
+        quadsum, uvsum = self.observatory.grid_baselines(
+            bl_max=bl_max, integration_time=self.integration_time,
+            uvbins=uvbins, ref_fq=self.freq,
+            observation_duration=self.obs_duration, report=False
+        )
+
+        SIZE = uvsum.shape[0]
 
         # Cut unnecessary data out of uv coverage: auto-correlations & half of uv
         # plane (which is not statistically independent for real sky)
-        uv[SIZE // 2, SIZE // 2] = 0.0
-        uv[:, : SIZE // 2] = 0.0
-        uv[SIZE // 2:, SIZE // 2] = 0.0
+        uvsum[SIZE // 2, SIZE // 2] = 0.0
+        uvsum[:, : SIZE // 2] = 0.0
+        uvsum[SIZE // 2:, SIZE // 2] = 0.0
 
         if self.no_ns_baselines:
-            uv[:, SIZE // 2] = 0.0
+            uvsum[:, SIZE // 2] = 0.0
 
-        return uv * self.integration_time
+        return uvsum * self.integration_time
 
     @cached_property
     def dish_size_in_lambda(self):
-        if not hasattr(self._dish_size, "unit"):
-            return self._dish_size * self.freq / self.reference_freq
-        else:
-            return (self._dish_size * self.freq / cnst.c).to("")
+        return self.observatory.beam.dish_size_in_lambda(self.freq)
 
     @cached_property
     def n_lstbins(self):
@@ -109,10 +126,6 @@ class Sensitivity:
         return self.p21.x.max()
 
     @cached_property
-    def beam_width(self):
-        return 1.13 * (2.35 * (0.45 / self.dish_size_in_lambda)) ** 2
-
-    @cached_property
     def Tsky(self):
         return 60e3 * (cnst.c / self.freq / units.m) ** 2.55
 
@@ -121,26 +134,12 @@ class Sensitivity:
         return self.Tsky + self.Trcv
 
     @cached_property
-    def first_null(self):
-        # for an airy disk, even though beam model is Gaussian
-        return 1.22 / self.dish_size_in_lambda
-
-    @cached_property
     def redshift(self):
         return conv.f2z(self.freq)
 
     @cached_property
     def kparallel(self):
         return conv.dk_deta(self.redshift) * np.fft.fftfreq(self.n_channels, self.bandwidth / self.n_channels)
-
-    @cached_property
-    def beam_width_sq(self):
-        # beam^2 term calculated for Gaussian; see Parsons et al. 2014
-        return self.beam_width / 2
-
-    @cached_property
-    def beam_eff(self):
-        return self.beam_width ** 2 / self.beam_width_sq
 
     @cached_property
     def tot_integration(self):
@@ -276,9 +275,8 @@ class Sensitivity:
             sense1d = self.calculate_sensitivity_2d(report=report, sources=sources)
 
         A = self.p21(self.k1d)
-        M = self.p21(self.k1d)
 
-        wA, wM = A * (1.0 / sense1d), M * (1.0 / sense1d)
+        wA = A * (1.0 / sense1d), M * (1.0 / sense1d)
         wA, wM = np.matrix(wA).T, np.matrix(wM).T
         amp = (wA.T * wA).I * (wA.T * wM)
 
