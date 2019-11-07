@@ -21,6 +21,7 @@ from ._utils import apply_or_convert_unit
 from . import observatory as obs
 from . import _utils as ut
 
+
 def get_eor_ps(k, h=0.7, power=None):
     """
     Generate a callable function for the EoR power spectrum.
