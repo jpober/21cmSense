@@ -10,6 +10,8 @@ from astropy.cosmology import Planck15
 
 from . import _utils
 
+# The frequency of the 21cm line emission.
+f21 = 1.42040575177 * u.GHz
 
 def f2z(fq):
     """
@@ -25,8 +27,7 @@ def f2z(fq):
     dimensionless astropy.Quantity : The redshift
     """
     fq = _utils.apply_or_convert_unit("GHz")(fq)
-    F21 = 1.42040575177 * u.GHz
-    return F21 / fq - 1
+    return f21 / fq - 1
 
 
 def z2f(z):
@@ -42,8 +43,7 @@ def z2f(z):
     -------
     astropy.Quantity : the frequency
     """
-    F21 = 1.42040575177 * u.GHz
-    return F21 / (1 + z)
+    return f21 / (1 + z)
 
 
 def dL_dth(z, cosmo=Planck15):
@@ -64,7 +64,7 @@ def dL_dth(z, cosmo=Planck15):
     -----
     From Furlanetto et al. (2006)
     """
-    return cosmo.comoving_transverse_distance(z) / u.rad
+    return cosmo.h * cosmo.comoving_transverse_distance(z) / u.rad / u.littleh
 
 
 def dL_df(z, cosmo=Planck15):
@@ -77,7 +77,7 @@ def dL_df(z, cosmo=Planck15):
     z : float
         The redshift
     """
-    return (cnst.c * (1 + z) / (z2f(z) * cosmo.H(z) * cosmo.h * u.littleh)).to("Mpc/MHz/littleh")
+    return (cosmo.h * cnst.c * (1 + z) / (z2f(z) * cosmo.H(z) * u.littleh)).to("Mpc/(MHz*littleh)")
 
 def dk_du(z, cosmo=Planck15):
     """
@@ -94,7 +94,7 @@ def dk_du(z, cosmo=Planck15):
     Valid for u >> 1
     """
     # from du = 1/dth, which derives from du = d(sin(th)) using the small-angle approx
-    return 2 * np.pi / dL_dth(z, cosmo)
+    return 2 * np.pi / dL_dth(z, cosmo) / u.rad
 
 
 def dk_deta(z, cosmo=Planck15):

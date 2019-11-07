@@ -1,0 +1,17 @@
+# This file denotes a default configuration for the HERA "observatory"
+# All arguments apply to the observatory.Observatory object -- look at the docs
+# for that object, or use `help(Observatory)` in an interpreter to see available
+# options.
+
+antpos:
+  function: hera  # if antpos is a dict, it uses a function from antpos.py
+  nside: 7
+  l: 14
+  dl: 12.12
+  units: m
+beam:
+  class: GaussianBeam
+  frequency: 150    # By default, in MHz
+  dish_size: 14.0   # By default, in m
+latitude: 0.536189  # In radians
+Trcv: 100000

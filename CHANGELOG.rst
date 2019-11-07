@@ -1,2 +1,27 @@
 CHANGELOG
 =========
+
+v3.0.0
+------
+A major overhaul of the code, making it object-oriented and modular.
+
+Features
+~~~~~~~~
+* Python 3 compatibility.
+* Class-based code, with specific objects for ``Observatory``, ``Observation``,
+  and class templates for different ``Sensitivity`` calculations, including default
+  ``PowerSpectrum``.
+* Clean ``attrs``-based classes.
+* ``click``-based CLI interface.
+* Ability to pickle intermediate classes for re-use.
+* Ability to specify observation frequency more freely (and self-consistently)
+* Removal of all usage of ``aipy`` as it is far too complex for a simple calculation such as this.
+* Ability to specify ``Observation``s using ``pyuvdata`` objects.
+* Useful docstrings throughout.
+* Explicit cosmological calculations based on astropy.
+* More flexible: extra parameters for foreground model and integration time, among others.
+* Agreement with previous versions (not exact agreement, because of the increase in accuracy
+  from using astropy).
+* All quantities have appropriate units (from astropy).
+* Example documentation, and example configuration files.
+* Configuration files are no longer python files... they are YAML.

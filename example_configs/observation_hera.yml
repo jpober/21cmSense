@@ -1,0 +1,12 @@
+# This file denotes a default configuration for an observation performed with HERA.
+# All arguments apply to the observation.Observation object -- look at the docs
+## for that object, or use `help(Observation)` in an interpreter to see available
+## options.
+
+# The observatory.
+# Either a file containing configuration options for the observatory, or a dict
+# of key: value pairs.
+observatory: observatory_hera.yml
+
+# These are relatively "set" by the observatory.
+integration_time: 10.7
