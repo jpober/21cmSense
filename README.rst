@@ -29,7 +29,7 @@ The simplest possible usage is by using the CLI as follows::
 
     $ sense calc-sense <SENSITIVITY_CONFIG_FILE.yml>
 
-Other options to the ``calc-sense`` program can be read by using
+Other options to the ``calc-sense`` program can be read by using::
 
     $ sense calc-sense --help
 
@@ -38,11 +38,11 @@ which details the various parameters that can be set. In all, three configuratio
 are required -- one defining an ``observatory``, another defining an ``observation``, and the
 ``sensitivity`` one already mentioned.
 
-The CLI can also be used in a two-step process, by running
+The CLI can also be used in a two-step process, by running::
 
     $ sense grid-baselines <OBSERVATION_CONFIG_FILE.yml>
 
-and then
+and then::
 
     $ sense calc-sense <SENSITIVITY_CONFIG_FILE.yml> --array-file=<ARRAY_FILE.pkl>
 
