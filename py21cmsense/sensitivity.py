@@ -285,7 +285,6 @@ class PowerSpectrum(Sensitivity):
         ):
             u, v = self.observation.ugrid[iu], self.observation.ugrid[iv]
             trms = self.observation.Trms[iu, iv]
-            print(iu, iv, trms)
 
             if np.isinf(trms):
                 # No baselines in this UV cell

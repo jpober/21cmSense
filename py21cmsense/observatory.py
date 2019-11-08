@@ -362,7 +362,7 @@ class Observatory:
                 self.beamgridder(
                     xcen=uvw[0] / self.beam.uv_resolution,
                     ycen=uvw[1] / self.beam.uv_resolution,
-                    beam=uvsum[cnt],
+                    uvgrid=uvsum[cnt],
                     n=nbls
                 )
 

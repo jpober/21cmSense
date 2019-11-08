@@ -164,7 +164,7 @@ class Observation:
         grid = fnc(
             integration_time=self.integration_time, bl_min=self.bl_min, bl_max=self.bl_max,
             observation_duration=self.obs_duration, ndecimals=self.redundancy_tol,
-            uvbins=self.baseline_groups
+            baseline_groups=self.baseline_groups
         )
 
         return grid
