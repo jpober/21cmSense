@@ -49,7 +49,7 @@ project = "21cmSense"
 year = "2019"
 author = "Jonathan Pober and Steven Murray"
 copyright = "{0}, {1}".format(year, author)
-version = release = "2.0.0"
+version = release = "2.0.0.alpha"
 templates_path = ["templates"]
 
 pygments_style = "trac"
