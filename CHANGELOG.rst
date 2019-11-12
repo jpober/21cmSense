@@ -1,12 +1,13 @@
-CHANGELOG
+=========
+Changelog
 =========
 
 v3.0.0
-------
+======
 A major overhaul of the code, making it object-oriented and modular.
 
 Features
-~~~~~~~~
+--------
 * Python 3 compatibility.
 * Class-based code, with specific objects for ``Observatory``, ``Observation``,
   and class templates for different ``Sensitivity`` calculations, including default
