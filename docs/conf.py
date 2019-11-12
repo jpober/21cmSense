@@ -1,0 +1,86 @@
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+
+import os
+import sys
+from unittest.mock import MagicMock
+
+sys.path.insert(0, os.path.abspath("../"))
+
+
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+        return MagicMock()
+
+
+# MOCK_MODULES = ["c_21cmfast"]
+# sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.coverage",
+    "sphinx.ext.doctest",
+    "sphinx.ext.extlinks",
+    "sphinx.ext.ifconfig",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.todo",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.mathjax",
+    "sphinx.ext.autosectionlabel",
+    "numpydoc",
+    "nbsphinx",
+    "IPython.sphinxext.ipython_console_highlighting",
+]
+if os.getenv("SPELLCHECK"):
+    extensions += ("sphinxcontrib.spelling",)
+    spelling_show_suggestions = True
+    spelling_lang = "en_US"
+
+autosectionlabel_prefix_document = True
+
+autosummary_generate = True
+numpydoc_show_class_members = False
+
+source_suffix = ".rst"
+master_doc = "index"
+project = "21cmSense"
+year = "2019"
+author = "Jonathan Pober and Steven Murray"
+copyright = "{0}, {1}".format(year, author)
+version = release = "2.0.0.alpha"
+templates_path = ["templates"]
+
+pygments_style = "trac"
+extlinks = {
+    "issue": ("https://github.com/steven-murray/21cmSense/issues/%s", "#"),
+    "pr": ("https://github.com/steven-murray/21cmSense/pull/%s", "PR #"),
+}
+# on_rtd is whether we are on readthedocs.org
+on_rtd = os.environ.get("READTHEDOCS", None) == "True"
+
+if not on_rtd:  # only set the theme if we're building docs locally
+    html_theme = "sphinx_rtd_theme"
+
+html_use_smartypants = True
+html_last_updated_fmt = "%b %d, %Y"
+html_split_index = False
+html_sidebars = {"**": ["searchbox.html", "globaltoc.html", "sourcelink.html"]}
+html_short_title = "%s-%s" % (project, version)
+
+napoleon_use_ivar = True
+napoleon_use_rtype = False
+napoleon_use_param = False
+
+mathjax_path = (
+    "http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+)
+
+exclude_patterns = [
+    "_build",
+    "Thumbs.db",
+    ".DS_Store",
+    "templates",
+    "**.ipynb_checkpoints",
+]

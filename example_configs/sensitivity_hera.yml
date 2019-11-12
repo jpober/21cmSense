@@ -1,0 +1,12 @@
+# This file denotes a default configuration for a sensitivity calculation for HERA
+# All arguments apply to the sensitivity.PowerSpectrum object -- look at the docs
+# for that object, or use `help(PowerSpectrum)` in an interpreter to see available
+# options.
+
+# The observation.
+# Either a file containing configuration options for the observation, or a dict
+# of key: value pairs.
+observation: observation_hera.yml
+
+# In this YAML file, instead of specifying optional k_21 and delta_21, you should
+# specify p21: a path to a file containing both k and delta.

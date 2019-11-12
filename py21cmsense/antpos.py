@@ -1,38 +1,57 @@
 """
 A module defining functions to produce antenna positions algorithmically.
 Each function here defined may take arbitrary parameters, but must return
-a single list or array of 3-tuples, corresponding to (x,y,z) positions
+a single array of shape (Nant, 3) with units of meters, corresponding to (x,y,z) positions
 of antennae centred at zero.
 """
-import aipy
+from astropy import units as un, constants as cnst
 import numpy as np
+from . import _utils as ut
 
 
-def hera(nside, L, dL, l_in_ns=True):
+def hera(nside, l, dl, units='m'):
     """
+    Produce a simple regular hexagonal array.
+
+    .. note:: This has no offset for the three parallelograms.
 
     Parameters
     ----------
-    nside
-    L
-    dL
-    l_in_ns
+    nside : int
+        Number of antennas per side of the hexagon
+    l : float or Quantity
+        The distance between antennas along a side. If float, assumed to be in `units`.
+        May have units of distance or time, the latter interpreted as a distance travelled
+        by light.
+    dL : float or Quantity
+        The distance between rows of antennas. If float, assumed to be in `units`.
+        May have units of distance or time, the latter interpreted as a distance travelled
+        by light.
+    units : str or astropy.units.Unit
+        The units of `l` and `dl`. If `l` and `dl` are astropy Quantities, this is ignored.
+        Must be in a format recognized by astropy.
 
     Returns
     -------
 
     """
-    if l_in_ns:
-        L /= aipy.const.len_ns
-        dL /= aipy.const.len_ns
+    l = ut.apply_or_convert_unit(units)(l)
+    dl = ut.apply_or_convert_unit(units)(dl)
+
+    try:
+        l = l.to("m")
+        dl = dl.to("m")
+    except un.UnitConversionError:
+        l = (l * cnst.c).to("m")
+        dl = (dl * cnst.c).to("m")
 
     antpos = []
     cen_y, cen_z = 0, 0
     for row in np.arange(nside):
         for cen_x in np.arange((2 * nside - 1) - row):
             dx = row / 2.
-            antpos.append(((cen_x + dx) * L, row * dL, cen_z))
+            antpos.append(((cen_x + dx) * l.value, row * dl.value, cen_z))
             if row != 0:
-                antpos.append(((cen_x + dx) * L, -row * dL, cen_z))
+                antpos.append(((cen_x + dx) * l.value, -row * dl.value, cen_z))
 
-    return antpos
+    return np.array(antpos) * un.m

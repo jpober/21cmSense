@@ -1,52 +1,128 @@
-import aipy
+"""
+Common 21 cm conversions.
+
+Provides conversions between observing co-ordinates and cosmological co-ordinates.
+"""
 import numpy as np
+from astropy import constants as cnst
+from astropy import units as u
+from astropy.cosmology import Planck15
 
+from . import _utils
 
-# Convert frequency (GHz) to redshift for 21cm line.
+# The frequency of the 21cm line emission.
+f21 = 1.42040575177 * u.GHz
+
 def f2z(fq):
-    F21 = 1.42040575177
-    return F21 / fq - 1
+    """
+    Convert frequency to redshift for 21 cm line.
+
+    Parameters
+    ----------
+    fq : float or astropy.Quantity
+        If float, it is interpreted as being in GHz.
+
+    Returns
+    -------
+    dimensionless astropy.Quantity : The redshift
+    """
+    fq = _utils.apply_or_convert_unit("GHz")(fq)
+    return f21 / fq - 1
 
 
-# Multiply by this to convert an angle on the sky to a transverse distance in
-# Mpc/h at redshift z
-def dL_dth(z):
-    """[h^-1 Mpc]/radian, from Furlanetto et al. (2006)"""
-    return 1.9 * (1.0 / aipy.const.arcmin) * ((1 + z) / 10.0) ** 0.2
+def z2f(z):
+    """
+    Convert redshift to z=0 frequency for 21 cm line.
+
+    Parameters
+    ----------
+    z : float
+        Redshift
+
+    Returns
+    -------
+    astropy.Quantity : the frequency
+    """
+    return f21 / (1 + z)
 
 
-# Multiply by this to convert a bandwidth in GHz to a line of sight distance in
-# Mpc/h at redshift z
-def dL_df(z, omega_m=0.266):
-    """[h^-1 Mpc]/GHz, from Furlanetto et al. (2006)"""
-    return (1.7 / 0.1) * ((1 + z) / 10.0) ** 0.5 * (omega_m / 0.15) ** -0.5 * 1e3
+def dL_dth(z, cosmo=Planck15):
+    """
+    Return the factor to convert radians to transverse distance at redshift z
+
+    Parameters
+    ----------
+    z : float
+        The redshift
+
+    Returns
+    -------
+    astropy.Quantity : the factor (in Mpc/h/radian) which converts from an angle
+        to a transverse distance.
+
+    Notes
+    -----
+    From Furlanetto et al. (2006)
+    """
+    return cosmo.h * cosmo.comoving_transverse_distance(z) / u.rad / u.littleh
 
 
-# Multiply by this to convert a baseline length in wavelengths (at the frequency
-# corresponding to redshift z) into a tranverse k mode in h/Mpc at redshift z
-def dk_du(z):
-    """2pi * [h Mpc^-1] / [wavelengths], valid for u >> 1."""
-    return 2 * np.pi / dL_dth(z)  # from du = 1/dth, which derives from du = d(sin(th)) using the small-angle approx
+def dL_df(z, cosmo=Planck15):
+    """
+    Return the factor to convert a bandwidth to a line-of-sight distance in Mpc/h
+    at redshift z
+
+    Parameters
+    ----------
+    z : float
+        The redshift
+    """
+    return (cosmo.h * cnst.c * (1 + z) / (z2f(z) * cosmo.H(z) * u.littleh)).to("Mpc/(MHz*littleh)")
+
+def dk_du(z, cosmo=Planck15):
+    """
+    Return the factor to convert a baseline length in wavelengths (at the frequency
+    corresponding to redshift z) into a transverse k mode in h/Mpc at redshift z
+
+    Parameters
+    ----------
+    z : float
+        redshift
+
+    Notes
+    -----
+    Valid for u >> 1
+    """
+    # from du = 1/dth, which derives from du = d(sin(th)) using the small-angle approx
+    return 2 * np.pi / dL_dth(z, cosmo) / u.rad
 
 
-# Multiply by this to convert eta (FT of freq.; in 1/GHz) to line of sight k
-# mode in h/Mpc at redshift z
-def dk_deta(z):
-    """2pi * [h Mpc^-1] / [GHz^-1]"""
-    return 2 * np.pi / dL_df(z)
+def dk_deta(z, cosmo=Planck15):
+    """
+    Return factor to convert eta (FT of freq.; in 1/GHz) to line of sight k
+    mode in h/Mpc at redshift z
+
+    Parameters
+    ----------
+    z: float
+        Redshift
+    """
+    return 2 * np.pi / dL_df(z, cosmo)
 
 
-# scalar conversion between observing and cosmological coordinates
-def X2Y(z):
-    """[h^-3 Mpc^3] / [str * GHz]"""
-    return dL_dth(z) ** 2 * dL_df(z)
+def X2Y(z, cosmo=Planck15):
+    """
+    Obtain the conversion factor between observing co-ordinates and cosmological volume.
 
+    Parameters
+    ----------
+    z: float
+        Redshift
+    cosmo: astropy.cosmology.FLRW instance
+        A cosmology.
 
-# A function used for binning
-def find_nearest(array, value):
-    idx = (np.abs(array - value)).argmin()
-    return idx
-
-def trunc(x, ndecimals=0):
-    decade = 10 ** ndecimals
-    return np.trunc(x * decade) / decade
+    Returns
+    -------
+    astropy.Quantity: the conversion factor. Units are Mpc^3/h^3 / (sr GHz).
+    """
+    return dL_dth(z, cosmo) ** 2 * dL_df(z, cosmo)
