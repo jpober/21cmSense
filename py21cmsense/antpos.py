@@ -4,12 +4,14 @@ Each function here defined may take arbitrary parameters, but must return
 a single array of shape (Nant, 3) with units of meters, corresponding to (x,y,z) positions
 of antennae centred at zero.
 """
-from astropy import units as un, constants as cnst
 import numpy as np
+from astropy import constants as cnst
+from astropy import units as un
+
 from . import _utils as ut
 
 
-def hera(nside, l, dl, units='m'):
+def hera(nside, separation, dl, units="m"):
     """
     Produce a simple regular hexagonal array.
 
@@ -19,11 +21,11 @@ def hera(nside, l, dl, units='m'):
     ----------
     nside : int
         Number of antennas per side of the hexagon
-    l : float or Quantity
+    separation : float or Quantity
         The distance between antennas along a side. If float, assumed to be in `units`.
         May have units of distance or time, the latter interpreted as a distance travelled
         by light.
-    dL : float or Quantity
+    dl : float or Quantity
         The distance between rows of antennas. If float, assumed to be in `units`.
         May have units of distance or time, the latter interpreted as a distance travelled
         by light.
@@ -35,23 +37,23 @@ def hera(nside, l, dl, units='m'):
     -------
 
     """
-    l = ut.apply_or_convert_unit(units)(l)
+    separation = ut.apply_or_convert_unit(units)(separation)
     dl = ut.apply_or_convert_unit(units)(dl)
 
     try:
-        l = l.to("m")
+        separation = separation.to("m")
         dl = dl.to("m")
     except un.UnitConversionError:
-        l = (l * cnst.c).to("m")
+        separation = (separation * cnst.c).to("m")
         dl = (dl * cnst.c).to("m")
 
     antpos = []
-    cen_y, cen_z = 0, 0
+    cen_z = 0
     for row in np.arange(nside):
         for cen_x in np.arange((2 * nside - 1) - row):
-            dx = row / 2.
-            antpos.append(((cen_x + dx) * l.value, row * dl.value, cen_z))
+            dx = row / 2.0
+            antpos.append(((cen_x + dx) * separation.value, row * dl.value, cen_z))
             if row != 0:
-                antpos.append(((cen_x + dx) * l.value, -row * dl.value, cen_z))
+                antpos.append(((cen_x + dx) * separation.value, -row * dl.value, cen_z))
 
     return np.array(antpos) * un.m

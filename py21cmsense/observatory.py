@@ -19,8 +19,7 @@ from cached_property import cached_property
 
 from . import _utils as ut
 from . import antpos as antpos_module
-from . import beam
-from . import config
+from . import beam, config
 
 
 @attr.s(frozen=True, kw_only=True)
@@ -42,10 +41,14 @@ class Observatory:
     Trcv : float or Quantity
         Receiver temperature, assumed to be in mK unless otherwise defined.
     """
-    antpos = attr.ib(converter=ut.apply_or_convert_unit('m'))
+
+    antpos = attr.ib(converter=ut.apply_or_convert_unit("m"))
     beam = attr.ib(validator=vld.instance_of(beam.PrimaryBeam))
-    latitude = attr.ib(0, converter=ut.apply_or_convert_unit('rad'),
-                       validator=ut.between(-np.pi * units.rad / 2, np.pi * units.rad / 2))
+    latitude = attr.ib(
+        0,
+        converter=ut.apply_or_convert_unit("rad"),
+        validator=ut.between(-np.pi * units.rad / 2, np.pi * units.rad / 2),
+    )
     Trcv = attr.ib(converter=ut.apply_or_convert_unit("mK"), validator=ut.nonnegative)
 
     @antpos.validator
@@ -74,8 +77,10 @@ class Observatory:
         try:
             import pyuvdata
         except ImportError:
-            raise ImportError("cannot construct Observatory from uvdata object without "
-                              "pyuvdata being installed!")
+            raise ImportError(
+                "cannot construct Observatory from uvdata object without "
+                "pyuvdata being installed!"
+            )
 
         if isinstance(uvdata, str):
             uv = pyuvdata.UVData()
@@ -84,9 +89,7 @@ class Observatory:
             uv = uvdata
 
         return cls(
-            antpos=uv.antenna_positions,
-            beam=beam,
-            latitude=uv.telescope_lat_lon_alt[0]
+            antpos=uv.antenna_positions, beam=beam, latitude=uv.telescope_lat_lon_alt[0]
         )
 
     @classmethod
@@ -98,7 +101,9 @@ class Observatory:
         elif isinstance(yaml_file, collections.abc.Mapping):
             data = yaml_file
         else:
-            raise ValueError("yaml_file must be a string filepath or a raw dict from such a file.")
+            raise ValueError(
+                "yaml_file must be a string filepath or a raw dict from such a file."
+            )
 
         antpos = data.pop("antpos")
 
@@ -112,24 +117,22 @@ class Observatory:
             else:
                 try:
                     antpos = np.genfromtxt(antpos)
-                except:
+                except Exception:
                     raise TypeError("None of the loaders for antpos worked.")
 
         try:
             antpos = np.array(antpos)
-        except:
-            raise ValueError("antpos must be a function from antpos, or a .npy or ascii "
-                             "file, or convertible to a ndarray")
+        except ValueError:
+            raise ValueError(
+                "antpos must be a function from antpos, or a .npy or ascii "
+                "file, or convertible to a ndarray"
+            )
 
         _beam = data.pop("beam")
         kind = _beam.pop("class")
         _beam = getattr(beam, kind)(**_beam)
 
-        return cls(
-            antpos=antpos,
-            beam=_beam,
-            **data
-        )
+        return cls(antpos=antpos, beam=_beam, **data)
 
     @staticmethod
     def beamgridder(xcen, ycen, uvgrid, n):
@@ -150,7 +153,9 @@ class Observatory:
         xcen += cen
         ycen = -1 * ycen + cen
 
-        if not (round(ycen) > size - 1 or round(xcen) > size - 1 or ycen < 0 or xcen < 0):
+        if not (
+            round(ycen) > size - 1 or round(xcen) > size - 1 or ycen < 0 or xcen < 0
+        ):
             uvgrid[int(round(ycen)), int(round(xcen))] += n  # single pixel gridder
 
     @cached_property
@@ -237,8 +242,12 @@ class Observatory:
 
         uvw = self.projected_baselines()
         # group redundant baselines
-        for i in tqdm.tqdm(range(self.n_antennas - 1), desc="finding redundancies",
-                           unit='ants', disable=not config.PROGRESS):
+        for i in tqdm.tqdm(
+            range(self.n_antennas - 1),
+            desc="finding redundancies",
+            unit="ants",
+            disable=not config.PROGRESS,
+        ):
             for j in range(i + 1, self.n_antennas):
 
                 bl_len = self.baseline_lengths[i, j]  # in wavelengths
@@ -247,9 +256,11 @@ class Observatory:
 
                 u, v = uvw[i, j][:2]
 
-                uvbin = (ut.trunc(u, ndecimals=ndecimals),
-                         ut.trunc(v, ndecimals=ndecimals),
-                         ut.trunc(bl_len, ndecimals=ndecimals))
+                uvbin = (
+                    ut.trunc(u, ndecimals=ndecimals),
+                    ut.trunc(v, ndecimals=ndecimals),
+                    ut.trunc(bl_len, ndecimals=ndecimals),
+                )
 
                 # add the uv point and its inverse to the redundant baseline dict.
                 uvbins[uvbin].append((i, j))
@@ -257,7 +268,9 @@ class Observatory:
 
         return uvbins
 
-    def time_offsets_from_obs_int_time(self, integration_time, observation_duration=None):
+    def time_offsets_from_obs_int_time(
+        self, integration_time, observation_duration=None
+    ):
         """
         Compute a list of time offsets within an LST-bin (i.e. they are added coherently for
         a given baseline group).
@@ -281,15 +294,24 @@ class Observatory:
             observation_duration = self.observation_duration
 
         observation_duration = ut.apply_or_convert_unit("min")(observation_duration)
-        integration_time = ut.apply_or_convert_unit('s')(integration_time)
+        integration_time = ut.apply_or_convert_unit("s")(integration_time)
         assert integration_time < observation_duration
 
-        return np.arange(-observation_duration.to('day').value / 2,
-                         observation_duration.to('day').value / 2,
-                         integration_time.to("day").value)
+        return np.arange(
+            -observation_duration.to("day").value / 2,
+            observation_duration.to("day").value / 2,
+            integration_time.to("day").value,
+        )
 
-    def grid_baselines(self, integration_time, bl_min=0, bl_max=np.inf,
-                       observation_duration=None, ndecimals=0, baseline_groups=None):
+    def grid_baselines(
+        self,
+        integration_time,
+        bl_min=0,
+        bl_max=np.inf,
+        observation_duration=None,
+        ndecimals=0,
+        baseline_groups=None,
+    ):
         """
         Grid baselines onto a pre-determined uvgrid, accounting for earth rotation.
 
@@ -331,11 +353,17 @@ class Observatory:
 
         bl_max = self.longest_used_baseline(bl_max)
 
-        time_offsets = self.time_offsets_from_obs_int_time(integration_time, observation_duration)
-        uvws = np.empty((len(time_offsets),
-                         self.baselines_metres.shape[0],
-                         self.baselines_metres.shape[1],
-                         3))
+        time_offsets = self.time_offsets_from_obs_int_time(
+            integration_time, observation_duration
+        )
+        uvws = np.empty(
+            (
+                len(time_offsets),
+                self.baselines_metres.shape[0],
+                self.baselines_metres.shape[1],
+                3,
+            )
+        )
 
         # Get all UVWs ahead of time.
         for itime, time_offset in enumerate(time_offsets):
@@ -347,10 +375,12 @@ class Observatory:
 
         uvsum = np.zeros((len(baseline_groups), dim, dim))
         for cnt, (key, antpairs) in enumerate(
-                tqdm.tqdm(
-                    baseline_groups.items(), desc="gridding baselines", unit='baselines',
-                    disable=not config.PROGRESS
-                )
+            tqdm.tqdm(
+                baseline_groups.items(),
+                desc="gridding baselines",
+                unit="baselines",
+                disable=not config.PROGRESS,
+            )
         ):
             bl = antpairs[0]
             nbls = len(antpairs)
@@ -363,7 +393,7 @@ class Observatory:
                     xcen=uvw[0] / self.beam.uv_resolution,
                     ycen=uvw[1] / self.beam.uv_resolution,
                     uvgrid=uvsum[cnt],
-                    n=nbls
+                    n=nbls,
                 )
 
         return uvsum

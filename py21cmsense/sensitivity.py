@@ -30,7 +30,7 @@ from . import observation as obs
 _K21_DEFAULT, _D21_DEFAULT = np.genfromtxt(
     os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
-        "data/ps_no_halos_nf0.521457_z9.50_useTs0_zetaX-1.0e+00_200_400Mpc_v2"
+        "data/ps_no_halos_nf0.521457_z9.50_useTs0_zetaX-1.0e+00_200_400Mpc_v2",
     )
 ).T[:2]
 
@@ -49,6 +49,7 @@ class Sensitivity:
         These baselines can potentially have higher systematics, so excluding them
         represents a conservative choice.
     """
+
     observation = attr.ib(validator=vld.instance_of(obs.Observation))
     no_ns_baselines = attr.ib(default=False, converter=bool)
 
@@ -60,7 +61,9 @@ class Sensitivity:
         elif isinstance(yaml_file, Mapping):
             data = yaml_file
         else:
-            raise ValueError("yaml_file must be a string filepath or a raw dict from such a file.")
+            raise ValueError(
+                "yaml_file must be a string filepath or a raw dict from such a file."
+            )
         return data
 
     @classmethod
@@ -69,23 +72,22 @@ class Sensitivity:
 
         klass = data.pop("class", cls)
 
-        if isinstance(yaml_file, str) and not path.isabs(data['observation']):
-            obsfile = path.join(path.dirname(yaml_file), data.pop('observation'))
+        if isinstance(yaml_file, str) and not path.isabs(data["observation"]):
+            obsfile = path.join(path.dirname(yaml_file), data.pop("observation"))
         else:
-            obsfile = data.pop('observation')
+            obsfile = data.pop("observation")
 
         if obsfile.endswith(".yml"):
             observation = obs.Observation.from_yaml(obsfile)
         elif obsfile.endswith(".pkl"):
-            with open(obsfile, 'rb') as fl:
+            with open(obsfile, "rb") as fl:
                 observation = pickle.load(fl)
         else:
-            raise ValueError("observation must be a filename with extension .yml or .pkl")
+            raise ValueError(
+                "observation must be a filename with extension .yml or .pkl"
+            )
 
-        return klass(
-            observation=observation,
-            **data
-        )
+        return klass(observation=observation, **data)
 
 
 def _kconverter(val):
@@ -120,12 +122,19 @@ class PowerSpectrum(Sensitivity):
         An array of Delta^2 power spectrum values used for sample variance.
         If not a Quantity, will assume units of mK^2.
     """
-    horizon_buffer = attr.ib(default=0.1, converter=ut.apply_or_convert_unit("littleh/Mpc"),
-                             validator=ut.nonnegative)
-    foreground_model = attr.ib(default="moderate",
-                               validator=vld.in_(['moderate', 'optimistic']))
+
+    horizon_buffer = attr.ib(
+        default=0.1,
+        converter=ut.apply_or_convert_unit("littleh/Mpc"),
+        validator=ut.nonnegative,
+    )
+    foreground_model = attr.ib(
+        default="moderate", validator=vld.in_(["moderate", "optimistic"])
+    )
     k_21 = attr.ib(_K21_DEFAULT, converter=_kconverter)
-    delta_21 = attr.ib(_D21_DEFAULT, converter=ut.apply_or_convert_unit("mK**2", array=True))
+    delta_21 = attr.ib(
+        _D21_DEFAULT, converter=ut.apply_or_convert_unit("mK**2", array=True)
+    )
 
     @classmethod
     def from_yaml(cls, yaml_file):
@@ -143,24 +152,24 @@ class PowerSpectrum(Sensitivity):
                 p21 = np.load(p21)
 
             elif p21.endswith(".pkl"):
-                with open(p21, 'rb') as fl:
+                with open(p21, "rb") as fl:
                     p21 = pickle.load(fl)
 
             else:
                 try:
                     p21 = np.genfromtxt(p21)
-                except:
+                except Exception:
                     raise ValueError("p21 must be a .npy, pkl or ascii file")
 
-            data['k_21'] = p21[:, 0]
-            data['delta_21'] = p21[:, 1]
+            data["k_21"] = p21[:, 0]
+            data["delta_21"] = p21[:, 1]
 
         if isinstance(yaml_file, str):
-            obsfile = path.join(path.dirname(yaml_file), data.pop('observation'))
+            obsfile = path.join(path.dirname(yaml_file), data.pop("observation"))
         else:
-            obsfile = data.pop('observation')
+            obsfile = data.pop("observation")
 
-        data['observation'] = obsfile
+        data["observation"] = obsfile
 
         return super().from_yaml(data)
 
@@ -182,7 +191,7 @@ class PowerSpectrum(Sensitivity):
     @cached_property
     def p21(self):
         """An interpolation function defining the cosmological power spectrum."""
-        fnc = interpolate.interp1d(self.k_21, self.delta_21, kind='linear')
+        fnc = interpolate.interp1d(self.k_21, self.delta_21, kind="linear")
         return lambda k: fnc(k) * un.mK ** 2
 
     @cached_property
@@ -219,7 +228,7 @@ class PowerSpectrum(Sensitivity):
         # plane (which is not statistically independent for real sky)
         grid[size // 2, size // 2] = 0.0
         grid[:, : size // 2] = 0.0
-        grid[size // 2:, size // 2] = 0.0
+        grid[size // 2 :, size // 2] = 0.0
 
         if self.no_ns_baselines:
             grid[:, size // 2] = 0.0
@@ -231,8 +240,11 @@ class PowerSpectrum(Sensitivity):
         k = ut.apply_or_convert_unit("littleh/Mpc")(k)
 
         return (
-                self.X2Y * self.observation.observatory.beam.b_eff() *
-                self.observation.bandwidth * k ** 3 / (2 * np.pi ** 2)
+            self.X2Y
+            * self.observation.observatory.beam.b_eff()
+            * self.observation.bandwidth
+            * k ** 3
+            / (2 * np.pi ** 2)
         ).to("")
 
     def thermal_noise(self, k_par, k_perp, trms):
@@ -280,8 +292,11 @@ class PowerSpectrum(Sensitivity):
         # loop over uv_coverage to calculate k_pr
         nonzero = np.where(self.uv_coverage > 0)
         for iu, iv in tqdm.tqdm(
-                zip(nonzero[1], nonzero[0]), desc="calculating 2D sensitivity",
-                unit='uv-bins', disable=not config.PROGRESS, total=len(nonzero[1])
+            zip(nonzero[1], nonzero[0]),
+            desc="calculating 2D sensitivity",
+            unit="uv-bins",
+            disable=not config.PROGRESS,
+            total=len(nonzero[1]),
         ):
             u, v = self.observation.ugrid[iu], self.observation.ugrid[iv]
             trms = self.observation.Trms[iu, iv]
@@ -320,7 +335,8 @@ class PowerSpectrum(Sensitivity):
             mask = sense[k_perp] > 0
             final_sense[k_perp] = np.inf * np.ones(len(mask)) * un.mK ** 2
             final_sense[k_perp][mask] = sense[k_perp][mask] ** -0.5 / np.sqrt(
-                self.observation.n_lst_bins)
+                self.observation.n_lst_bins
+            )
 
         return final_sense
 
@@ -338,7 +354,9 @@ class PowerSpectrum(Sensitivity):
         float :
             Horizon limit, in h/Mpc.
         """
-        horizon = conv.dk_deta(self.observation.redshift) * umag / self.observation.frequency
+        horizon = (
+            conv.dk_deta(self.observation.redshift) * umag / self.observation.frequency
+        )
         # calculate horizon limit for baseline of length umag
         if self.foreground_model in ["moderate", "pessimistic"]:
             return horizon + self.horizon_buffer
@@ -350,8 +368,13 @@ class PowerSpectrum(Sensitivity):
         sense1d_inv = np.zeros(len(self.k1d)) / un.mK ** 4
 
         for ind, k_perp in enumerate(
-                tqdm.tqdm(sense.keys(), desc='averaging to 1D', unit='kpar bins',
-                          disable=not config.PROGRESS)):
+            tqdm.tqdm(
+                sense.keys(),
+                desc="averaging to 1D",
+                unit="kpar bins",
+                disable=not config.PROGRESS,
+            )
+        ):
             for i, k_par in enumerate(self.observation.kparallel):
                 k = np.sqrt(k_par ** 2 + k_perp ** 2)
                 if np.abs(k) > self.k_max:
@@ -405,13 +428,14 @@ class PowerSpectrum(Sensitivity):
         """
         if self.k_21 is None:
             raise NotImplementedError(
-                "significance is not possible without an input 21cm power spectrum")
+                "significance is not possible without an input 21cm power spectrum"
+            )
 
         mask = np.logical_and(self.k1d >= self.k_min, self.k1d <= self.k_max)
         sense1d = self.calculate_sensitivity_1d(thermal=thermal, sample=sample)
 
         A = self.p21(self.k1d[mask])
-        wA = (A / sense1d[mask])
+        wA = A / sense1d[mask]
         X = np.dot(wA, wA.T)
         err = np.sqrt((1.0 / np.float(X)))
         return 1 / err
