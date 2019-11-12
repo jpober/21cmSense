@@ -16,7 +16,7 @@ Features
 * Ability to pickle intermediate classes for re-use.
 * Ability to specify observation frequency more freely (and self-consistently)
 * Removal of all usage of ``aipy`` as it is far too complex for a simple calculation such as this.
-* Ability to specify ``Observation``s using ``pyuvdata`` objects.
+* Ability to specify ``Observation`` using ``pyuvdata`` objects.
 * Useful docstrings throughout.
 * Explicit cosmological calculations based on astropy.
 * More flexible: extra parameters for foreground model and integration time, among others.

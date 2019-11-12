@@ -6,3 +6,4 @@ py21cmsense/__pycache__/
 py21cmsense\.egg-info/
 
 *.pyc
+docs/_build/

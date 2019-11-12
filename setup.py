@@ -64,6 +64,15 @@ setup_args = dict(
         'astropy',
         'methodtools'
     ],
+    extras_require={
+        "docs": [
+            'sphinx>=1.3',
+            'sphinx-rtd-theme',
+            'numpydoc',
+            'nbsphinx',
+            'ipython',
+        ]
+    },
     package_data={"py21cmsense":['data/*']},
     entry_points={
         'console_scripts': [
