@@ -2,8 +2,7 @@
 A module defining the `Observation` class, which is a self-contained way to specify
 an interferometric observation.
 """
-from __future__ import division
-from __future__ import print_function
+from __future__ import division, print_function
 
 import collections
 from os import path
@@ -12,7 +11,8 @@ import attr
 import numpy as np
 import yaml
 from astropy import units
-from attr import validators as vld, converters as cnv
+from attr import converters as cnv
+from attr import validators as vld
 from cached_property import cached_property
 
 from . import _utils as ut
@@ -74,18 +74,32 @@ class Observation:
         Frequency at which the foreground model is equal to `tsky_amplitude`.
         See `spectral_index`. Default assumed to be in MHz.
     """
+
     observatory = attr.ib(validator=vld.instance_of(obs.Observatory))
 
-    hours_per_day = attr.ib(6, converter=ut.apply_or_convert_unit("hour"), validator=ut.positive)
-    obs_duration = attr.ib(converter=cnv.optional(apply_or_convert_unit("min")),
-                           validator=vld.optional(ut.positive))
-    integration_time = attr.ib(60, converter=apply_or_convert_unit('s'), validator=ut.positive)
+    hours_per_day = attr.ib(
+        6, converter=ut.apply_or_convert_unit("hour"), validator=ut.positive
+    )
+    obs_duration = attr.ib(
+        converter=cnv.optional(apply_or_convert_unit("min")),
+        validator=vld.optional(ut.positive),
+    )
+    integration_time = attr.ib(
+        60, converter=apply_or_convert_unit("s"), validator=ut.positive
+    )
     n_channels = attr.ib(82, converter=int, validator=ut.positive)
-    bandwidth = attr.ib(8, converter=apply_or_convert_unit("MHz"), validator=ut.positive)
+    bandwidth = attr.ib(
+        8, converter=apply_or_convert_unit("MHz"), validator=ut.positive
+    )
     n_days = attr.ib(default=180, converter=int, validator=ut.positive)
-    bl_min = attr.ib(default=0, converter=ut.apply_or_convert_unit("m"), validator=ut.nonnegative)
-    bl_max = attr.ib(default=np.inf, converter=ut.apply_or_convert_unit('m'),
-                     validator=ut.nonnegative)
+    bl_min = attr.ib(
+        default=0, converter=ut.apply_or_convert_unit("m"), validator=ut.nonnegative
+    )
+    bl_max = attr.ib(
+        default=np.inf,
+        converter=ut.apply_or_convert_unit("m"),
+        validator=ut.nonnegative,
+    )
     redundancy_tol = attr.ib(default=1, converter=int, validator=ut.nonnegative)
     coherent = attr.ib(default=True, converter=bool)
 
@@ -93,7 +107,9 @@ class Observation:
     # figure 8, with galaxy down.
     spectral_index = attr.ib(default=2.6, converter=float, validator=ut.between(1.5, 4))
     tsky_amplitude = attr.ib(
-        default=260000, converter=ut.apply_or_convert_unit("mK"), validator=ut.nonnegative
+        default=260000,
+        converter=ut.apply_or_convert_unit("mK"),
+        validator=ut.nonnegative,
     )
     tsky_ref_freq = attr.ib(
         default=150, converter=ut.apply_or_convert_unit("MHz"), validator=ut.positive
@@ -112,18 +128,19 @@ class Observation:
         elif isinstance(yaml_file, collections.abc.Mapping):
             data = yaml_file
         else:
-            raise ValueError("yaml_file must be a string filepath or a raw dict from such a file.")
+            raise ValueError(
+                "yaml_file must be a string filepath or a raw dict from such a file."
+            )
 
-        if isinstance(data['observatory'], str) and isinstance(yaml_file, str):
+        if isinstance(data["observatory"], str) and isinstance(yaml_file, str):
             # Assume it's a filename, prepend the directory that this file is in.
-            if not path.isabs(data['observatory']):
-                data['observatory'] = path.join(path.dirname(yaml_file), data['observatory'])
+            if not path.isabs(data["observatory"]):
+                data["observatory"] = path.join(
+                    path.dirname(yaml_file), data["observatory"]
+                )
 
         observatory = obs.Observatory.from_yaml(data.pop("observatory"))
-        return cls(
-            observatory=observatory,
-            **data
-        )
+        return cls(observatory=observatory, **data)
 
     @obs_duration.default
     def _obstime_default(self):
@@ -137,8 +154,7 @@ class Observation:
         baseline group.
         """
         return self.observatory.get_redundant_baselines(
-            bl_min=self.bl_min, bl_max=self.bl_max,
-            ndecimals=self.redundancy_tol
+            bl_min=self.bl_min, bl_max=self.bl_max, ndecimals=self.redundancy_tol
         )
 
     @property
@@ -162,9 +178,12 @@ class Observation:
             fnc = self.observatory.grid_baselines_coherent
 
         grid = fnc(
-            integration_time=self.integration_time, bl_min=self.bl_min, bl_max=self.bl_max,
-            observation_duration=self.obs_duration, ndecimals=self.redundancy_tol,
-            baseline_groups=self.baseline_groups
+            integration_time=self.integration_time,
+            bl_min=self.bl_min,
+            bl_max=self.bl_max,
+            observation_duration=self.obs_duration,
+            ndecimals=self.redundancy_tol,
+            baseline_groups=self.baseline_groups,
         )
 
         return grid
@@ -184,7 +203,9 @@ class Observation:
     @cached_property
     def Tsky(self):
         """Temperature of the sky at the default frequency"""
-        return self.tsky_amplitude * (self.frequency/self.tsky_ref_freq)**(-self.spectral_index)
+        return self.tsky_amplitude * (self.frequency / self.tsky_ref_freq) ** (
+            -self.spectral_index
+        )
 
     @cached_property
     def Tsys(self):
@@ -201,8 +222,9 @@ class Observation:
         """1D array of kparallel values, defined by the bandwidth and number of channels.
         Order of the values is the same as `fftfreq` (i.e. zero-first)
         """
-        return conv.dk_deta(self.redshift) * np.fft.fftfreq(self.n_channels,
-                                                            self.bandwidth / self.n_channels)
+        return conv.dk_deta(self.redshift) * np.fft.fftfreq(
+            self.n_channels, self.bandwidth / self.n_channels
+        )
 
     @cached_property
     def total_integration_time(self):
@@ -219,13 +241,17 @@ class Observation:
 
         The u-values on each side of the grid are given by :func:`ugrid`.
         """
-        return self.Tsys / np.sqrt(2 * self.bandwidth * self.total_integration_time).to("")
+        return self.Tsys / np.sqrt(2 * self.bandwidth * self.total_integration_time).to(
+            ""
+        )
 
     @cached_property
     def ugrid(self):
         """Centres of the linear grid which defines a side of the UV grid corresponding
         to :func:`uv_coverage` and its derivative quantities."""
-        return self.observatory.ugrid(self.bl_max * self.observatory.metres_to_wavelengths)
+        return self.observatory.ugrid(
+            self.bl_max * self.observatory.metres_to_wavelengths
+        )
 
     def clone(self, **kwargs):
         """Create a new instance of this instance, but with arbitrary changes to parameters."""
@@ -236,5 +262,5 @@ class Observation:
         # class, the method which actually "does stuff" (i.e. uv_coverage) is run
         # and its output is saved in the pickle.
         d = self.__dict__
-        d['uv_cov'] = self.uv_coverage
+        d["uv_cov"] = self.uv_coverage
         return d

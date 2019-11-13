@@ -3,10 +3,11 @@ Utility functions for 21cmSense.
 """
 import numpy as np
 from astropy import units as un
-from astropy.coordinates import SkyCoord, EarthLocation
+from astropy.coordinates import EarthLocation, SkyCoord
 from astropy.time import Time
-from . import config
 from pyuvdata import uvutils
+
+from . import config
 
 
 class UnitError(ValueError):
@@ -38,7 +39,11 @@ def apply_or_convert_unit(unit, allow_unitless=False, array=False):
                 return quantity
 
             if not config.ALLOW_DEFAULT_UNITS:
-                raise UnitError("This value is required to have units convertible to {}".format(unit))
+                raise UnitError(
+                    "This value is required to have units convertible to {}".format(
+                        unit
+                    )
+                )
 
             return un.Quantity(quantity, unit)
 
@@ -47,6 +52,7 @@ def apply_or_convert_unit(unit, allow_unitless=False, array=False):
 
 def between(min, max):
     """Return an attrs validation function that validates that a number is within certain bounds"""
+
     def validator(instance, att, val):
         assert min <= val <= max
 
@@ -103,38 +109,52 @@ def phase(jd, ra, dec, telescope_location, uvws0):
         center.
     """
 
-    frame_phase_center = SkyCoord(ra=ra, dec=dec, unit='radian', frame='icrs')
+    frame_phase_center = SkyCoord(ra=ra, dec=dec, unit="radian", frame="icrs")
 
-    obs_time = Time(jd, format='jd')
+    obs_time = Time(jd, format="jd")
     telescope_loc_xyz = uvutils.XYZ_from_LatLonAlt(
-        telescope_location.lat.rad, telescope_location.lon.rad, telescope_location.height
+        telescope_location.lat.rad,
+        telescope_location.lon.rad,
+        telescope_location.height,
     )
 
-    itrs_telescope_location = SkyCoord(x=telescope_loc_xyz[0] * un.m,
-                                       y=telescope_loc_xyz[1] * un.m,
-                                       z=telescope_loc_xyz[2] * un.m,
-                                       frame='itrs', obstime=obs_time)
+    itrs_telescope_location = SkyCoord(
+        x=telescope_loc_xyz[0] * un.m,
+        y=telescope_loc_xyz[1] * un.m,
+        z=telescope_loc_xyz[2] * un.m,
+        frame="itrs",
+        obstime=obs_time,
+    )
 
-    frame_telescope_location = itrs_telescope_location.transform_to('icrs')
-    frame_telescope_location.representation_type = 'cartesian'
+    frame_telescope_location = itrs_telescope_location.transform_to("icrs")
+    frame_telescope_location.representation_type = "cartesian"
 
     uvw_ecef = uvutils.ECEF_from_ENU(
-        uvws0, telescope_location.lat.rad,
-        telescope_location.lon.rad, telescope_location.height
+        uvws0,
+        telescope_location.lat.rad,
+        telescope_location.lon.rad,
+        telescope_location.height,
     )
 
-    itrs_uvw_coord = SkyCoord(x=uvw_ecef[:, 0] * un.m,
-                              y=uvw_ecef[:, 1] * un.m,
-                              z=uvw_ecef[:, 2] * un.m,
-                              frame='itrs', obstime=obs_time)
-    frame_uvw_coord = itrs_uvw_coord.transform_to('icrs')
+    itrs_uvw_coord = SkyCoord(
+        x=uvw_ecef[:, 0] * un.m,
+        y=uvw_ecef[:, 1] * un.m,
+        z=uvw_ecef[:, 2] * un.m,
+        frame="itrs",
+        obstime=obs_time,
+    )
+    frame_uvw_coord = itrs_uvw_coord.transform_to("icrs")
 
     # this takes out the telescope location in the new frame,
     # so these are vectors again
-    frame_rel_uvw = (frame_uvw_coord.cartesian.get_xyz().value.T
-                     - frame_telescope_location.cartesian.get_xyz().value)
+    frame_rel_uvw = (
+        frame_uvw_coord.cartesian.get_xyz().value.T
+        - frame_telescope_location.cartesian.get_xyz().value
+    )
 
-    uvws = uvutils.phase_uvw(frame_phase_center.ra.rad, frame_phase_center.dec.rad, frame_rel_uvw)
+    uvws = uvutils.phase_uvw(
+        frame_phase_center.ra.rad, frame_phase_center.dec.rad, frame_rel_uvw
+    )
     return uvws
 
 
@@ -171,12 +191,20 @@ def phase_past_zenith(time_past_zenith, uvws0, latitude):
     jd = 2454600
 
     zenith_coord = SkyCoord(
-        alt=90 * un.deg, az=0 * un.deg, obstime=Time(jd, format='jd'),
-        frame='altaz', location=telescope_location
+        alt=90 * un.deg,
+        az=0 * un.deg,
+        obstime=Time(jd, format="jd"),
+        frame="altaz",
+        location=telescope_location,
     )
-    zenith_coord = zenith_coord.transform_to('icrs')
+    zenith_coord = zenith_coord.transform_to("icrs")
 
     # Get the RA that was the meridian at jd - time_past_zenith
 
-    return phase(jd + time_past_zenith.value, zenith_coord.ra.rad, zenith_coord.dec.rad,
-                 telescope_location, uvws0)
+    return phase(
+        jd + time_past_zenith.value,
+        zenith_coord.ra.rad,
+        zenith_coord.dec.rad,
+        telescope_location,
+        uvws0,
+    )

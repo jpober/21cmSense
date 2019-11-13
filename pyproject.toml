@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=30.3.0", "wheel", "setuptools_scm"]
+
+[tool.black]
+line-length = 88
+py36 = false
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''

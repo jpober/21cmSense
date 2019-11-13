@@ -13,6 +13,7 @@ from . import _utils
 # The frequency of the 21cm line emission.
 f21 = 1.42040575177 * u.GHz
 
+
 def f2z(fq):
     """
     Convert frequency to redshift for 21 cm line.
@@ -77,7 +78,10 @@ def dL_df(z, cosmo=Planck15):
     z : float
         The redshift
     """
-    return (cosmo.h * cnst.c * (1 + z) / (z2f(z) * cosmo.H(z) * u.littleh)).to("Mpc/(MHz*littleh)")
+    return (cosmo.h * cnst.c * (1 + z) / (z2f(z) * cosmo.H(z) * u.littleh)).to(
+        "Mpc/(MHz*littleh)"
+    )
+
 
 def dk_du(z, cosmo=Planck15):
     """

@@ -3,6 +3,7 @@ from abc import ABC
 import attr
 from astropy import constants as cnst
 from astropy import units as un
+
 from . import _utils as ut
 
 
@@ -11,8 +12,10 @@ class PrimaryBeam(ABC):
     """
     A Base class defining a Primary Beam and the methods it requires to define.
     """
-    frequency = attr.ib(converter=ut.apply_or_convert_unit("MHz"),
-                        validator=ut.positive)
+
+    frequency = attr.ib(
+        converter=ut.apply_or_convert_unit("MHz"), validator=ut.positive
+    )
 
     def new(self, **kwargs):
         """Return a clone of this instance, but change kwargs"""
@@ -61,15 +64,15 @@ class GaussianBeam(PrimaryBeam):
         The size of the (assumed circular) dish, assumed to be in meters unless
         otherwise defined. This generates the beam size.
     """
-    dish_size = attr.ib(converter=ut.apply_or_convert_unit("m"),
-                         validator=ut.positive)
+
+    dish_size = attr.ib(converter=ut.apply_or_convert_unit("m"), validator=ut.positive)
 
     def dish_size_in_lambda(self, freq=None):
         """The dish size in units of wavelengths, for a given frequency.
 
         If frequency is not given, uses the instance's `frequency`
         """
-        freq = ut.apply_or_convert_unit('MHz')(freq or self.frequency)
+        freq = ut.apply_or_convert_unit("MHz")(freq or self.frequency)
         return (self.dish_size / (cnst.c / freq)).to("").value
 
     def area(self, freq=None):
