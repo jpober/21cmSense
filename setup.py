@@ -64,6 +64,8 @@ setup_args = {
         "pyyaml",
         "astropy",
         "methodtools",
+        "pyuvdata",
+        "cached_property",
     ],
     "extras_require": {
         "docs": ["sphinx>=1.3", "sphinx-rtd-theme", "numpydoc", "nbsphinx", "ipython"],
