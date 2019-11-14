@@ -2,7 +2,7 @@
 # Read more under http://docs.travis-ci.com/user/build-configuration/
 
 sudo: required
-language: generic
+language: python
 env:
   matrix:
     - PYTHON_VERSION=3.6
