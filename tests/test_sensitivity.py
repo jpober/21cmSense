@@ -35,6 +35,19 @@ def test_units(observation):
     assert ps.power_normalisation(0.1).unit == units.dimensionless_unscaled
     assert ps.horizon_limit(10).to("littleh/Mpc").unit == units.littleh / units.Mpc
 
+    ps = PowerSpectrum(
+        observation=observation,
+        k_21=np.array([1, 2, 3]) * units.littleh / units.Mpc,
+        delta_21=np.array([1, 2, 3]) * units.mK ** 2,
+    )
+    ps2 = PowerSpectrum(
+        observation=observation,
+        k_21=np.array([1, 2, 3]) / units.Mpc,
+        delta_21=np.array([1, 2, 3]) * units.mK ** 2,
+    )
+
+    assert np.all(ps.k_21 < ps2.k_21)
+
 
 def test_sensitivity_2d(observation):
     ps = PowerSpectrum(observation=observation)
