@@ -30,4 +30,4 @@ def test_gaussian_beam():
     assert bm.uv_resolution == bm.dish_size_in_lambda()
     assert bm.sq_area() < bm.area()
     assert bm.fwhm() > bm.width()
-    assert bm.first_null() < np.pi / 2
+    assert bm.first_null() < np.pi * units.rad / 2
