@@ -22,7 +22,7 @@ from . import antpos as antpos_module
 from . import beam, config
 
 
-@attr.s(frozen=True, kw_only=True)
+@attr.s(frozen=True, kw_only=True, cmp=False)
 class Observatory:
     """
     A class defining an interferometric Observatory and its properties.
@@ -49,12 +49,14 @@ class Observatory:
         converter=ut.apply_or_convert_unit("rad"),
         validator=ut.between(-np.pi * units.rad / 2, np.pi * units.rad / 2),
     )
-    Trcv = attr.ib(converter=ut.apply_or_convert_unit("mK"), validator=ut.nonnegative)
+    Trcv = attr.ib(
+        1e5, converter=ut.apply_or_convert_unit("mK"), validator=ut.nonnegative
+    )
 
     @antpos.validator
     def _antpos_validator(self, att, val):
-        assert len(val.shape) == 2
-        assert val.shape[-1] in [2, 3]
+        assert val.ndim == 2
+        assert val.shape[-1] == 3
         assert val.shape[0] > 1
 
     @property
@@ -149,9 +151,9 @@ class Observatory:
             Number of baselines in the baseline group.
         """
         size = uvgrid.shape[0]
-        cen = size // 2 - 0.5  # correction for centering
+        cen = size // 2  # - 0.5  # correction for centering
         xcen += cen
-        ycen = -1 * ycen + cen
+        ycen += cen
 
         if not (
             round(ycen) > size - 1 or round(xcen) > size - 1 or ycen < 0 or xcen < 0
@@ -371,7 +373,7 @@ class Observatory:
 
         # grid each baseline type into uv plane
         # round to nearest odd
-        dim = int(np.round(bl_max / self.beam.uv_resolution) * 2 + 1)
+        dim = len(self.ugrid(bl_max))
 
         uvsum = np.zeros((len(baseline_groups), dim, dim))
         for cnt, (key, antpairs) in enumerate(
@@ -406,9 +408,11 @@ class Observatory:
             bl_max = ut.apply_or_convert_unit("m")(bl_max) * self.metres_to_wavelengths
             return np.max(self.baseline_lengths[self.baseline_lengths <= bl_max])
 
-    def ugrid(self, bl_max=np.inf):
+    def ugrid_edges(self, bl_max=np.inf):
         """
         Generate a uv grid out to the maximum used baseline smaller than the given bl_max.
+        The resulting array represents the *edges* of the grid (so the number of cells
+        is one fewer than this).
 
         Parameters
         ----------
@@ -421,8 +425,25 @@ class Observatory:
             1D array of regularly spaced u.
         """
         bl_max = self.longest_used_baseline(bl_max)
-        size = int(np.round(bl_max / self.beam.uv_resolution) * 2 + 1)
-        return (np.arange(size) - size // 2) * self.beam.uv_resolution
+
+        # We're doing edges of bins here, and the first edge is at uv_res/2
+        n_positive = int(
+            np.ceil((bl_max - self.beam.uv_resolution / 2) / self.beam.uv_resolution)
+        )
+
+        # Grid from uv_res/2 to just past (or equal to) bl_max, in steps of resolution.
+        positive = np.linspace(
+            self.beam.uv_resolution / 2,
+            n_positive * self.beam.uv_resolution,
+            n_positive + 1,
+        )
+        edges = np.concatenate((positive[::-1], positive))
+        return edges
+
+    def ugrid(self, bl_max=np.inf):
+        """Centres of the UV grid plane."""
+        # Shift the edges by half a cell, and omit the last one
+        return (self.ugrid_edges(bl_max) + self.beam.uv_resolution / 2)[:-1]
 
     def grid_baselines_coherent(self, **kwargs):
         """
@@ -443,3 +464,18 @@ class Observatory:
         """
         grid = self.grid_baselines(**kwargs)
         return np.sqrt(np.sum(grid ** 2, axis=0))
+
+    def __eq__(self, other):
+        if not self.__class__ == other.__class__:
+            return False
+        if not (self.Trcv, self.beam, self.latitude) == (
+            other.Trcv,
+            other.beam,
+            other.latitude,
+        ):
+            return False
+
+        if not np.array_equal(self.antpos.value, other.antpos.value):
+            return False
+
+        return True

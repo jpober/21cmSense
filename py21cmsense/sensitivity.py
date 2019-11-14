@@ -175,18 +175,14 @@ class PowerSpectrum(Sensitivity):
 
     @k_21.validator
     def _p21k_validator(self, att, val):
-        if val is not None:
-            assert isinstance(val, np.ndarray)
-            assert val.ndim == 1
+        assert isinstance(val, np.ndarray)
+        assert val.ndim == 1
 
     @delta_21.validator
     def _delta21_validator(self, att, val):
-        if val is not None:
-            assert isinstance(val, np.ndarray)
-            assert val.ndim == 1
-            assert val.shape == self.k_21.shape
-        else:
-            assert self.k_21 is None
+        assert isinstance(val, np.ndarray)
+        assert val.ndim == 1
+        assert val.shape == self.k_21.shape
 
     @cached_property
     def p21(self):
@@ -262,7 +258,7 @@ class PowerSpectrum(Sensitivity):
         return self.p21(k)
 
     @lru_cache()
-    def calculate_sensitivity_2d(self, thermal=True, sample=None):
+    def calculate_sensitivity_2d(self, thermal=True, sample=True):
         """
         Calculate power spectrum sensitivity for a grid of cylindrical k modes.
 
@@ -279,10 +275,6 @@ class PowerSpectrum(Sensitivity):
             Keys are cylindrical kperp values and values are arrays aligned with
             `observation.kparallel`, defining uncertainty in mK^2.
         """
-        # by default, do sample variance if a power spectrum is supplied.
-        if sample is None:
-            sample = self.k_21 is not None
-
         # set up blank arrays/dictionaries
         sense = {}
 
@@ -426,11 +418,6 @@ class PowerSpectrum(Sensitivity):
         float :
             Significance of detection (in units of sigma).
         """
-        if self.k_21 is None:
-            raise NotImplementedError(
-                "significance is not possible without an input 21cm power spectrum"
-            )
-
         mask = np.logical_and(self.k1d >= self.k_min, self.k1d <= self.k_max)
         sense1d = self.calculate_sensitivity_1d(thermal=thermal, sample=sample)
 

@@ -253,6 +253,14 @@ class Observation:
             self.bl_max * self.observatory.metres_to_wavelengths
         )
 
+    @cached_property
+    def ugrid_edges(self):
+        """Edges of the linear grid which defines a side of the UV grid corresponding
+        to :func:`uv_coverage` and its derivative quantities."""
+        return self.observatory.ugrid_edges(
+            self.bl_max * self.observatory.metres_to_wavelengths
+        )
+
     def clone(self, **kwargs):
         """Create a new instance of this instance, but with arbitrary changes to parameters."""
         return attr.evolve(self, **kwargs)
