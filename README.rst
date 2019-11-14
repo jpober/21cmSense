@@ -2,16 +2,17 @@
 21cmSense
 =========
 
+.. image:: https://travis-ci.org/steven-murray/21cmSense.svg?branch=master
+    :target: https://travis-ci.org/steven-murray/21cmSense
+.. image:: https://codecov.io/gh/steven-murray/21cmSense/branch/master/graph/badge.svg
+  :target: https://codecov.io/gh/steven-murray/21cmSense
+.. image:: https://img.shields.io/badge/License-GPLv3-blue.svg
+  :target: https://www.gnu.org/licenses/gpl-3.0
+.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
+  :target: https://github.com/psf/black
+
 A python package for calculating the expected sensitivities of 21cm experiments
-to the Epoch of Reionization power spectrum.  For details of the observing
-strategy assumed by this code, and other relevant scientific information, please
-see
-
-    Pober et al. 2013AJ....145...65P
-
-and
-
-    Pober et al. 2014ApJ...782...66P.
+to the Epoch of Reionization and/or Cosmic Dawn power spectrum.
 
 Installation
 ============
@@ -53,7 +54,8 @@ the execution).
 
 Acknowledgment
 ==============
-If you use this code in any of your work, please acknowledge
+For details of the observing strategy assumed by this code, and other relevant
+scientific information, please see
 
     Pober et al. 2013AJ....145...65P
 
@@ -61,4 +63,5 @@ and
 
     Pober et al. 2014ApJ...782...66P
 
+If you use this code in any of your work, please acknowledge these papers,
 and provide a link to this repository.
