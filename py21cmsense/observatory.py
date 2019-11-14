@@ -154,7 +154,6 @@ class Observatory:
         cen = size // 2  # - 0.5  # correction for centering
         xcen += cen
         ycen += cen
-        print(xcen, ycen, int(round(ycen)))
 
         if not (
             round(ycen) > size - 1 or round(xcen) > size - 1 or ycen < 0 or xcen < 0
@@ -444,7 +443,7 @@ class Observatory:
     def ugrid(self, bl_max=np.inf):
         """Centres of the UV grid plane."""
         # Shift the edges by half a cell, and omit the last one
-        return (self.ugrid_edges(bl_max) + self.beam.uv_resolution / 2)[::-1]
+        return (self.ugrid_edges(bl_max) + self.beam.uv_resolution / 2)[:-1]
 
     def grid_baselines_coherent(self, **kwargs):
         """
