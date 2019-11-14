@@ -11,7 +11,7 @@ from astropy import units as un
 from . import _utils as ut
 
 
-def hera(nside, separation, dl, units="m"):
+def hera(nside, l, dl, units="m"):
     """
     Produce a simple regular hexagonal array.
 
@@ -37,7 +37,7 @@ def hera(nside, separation, dl, units="m"):
     -------
 
     """
-    separation = ut.apply_or_convert_unit(units)(separation)
+    separation = ut.apply_or_convert_unit(units)(l)
     dl = ut.apply_or_convert_unit(units)(dl)
 
     try:
