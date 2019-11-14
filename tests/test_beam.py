@@ -1,5 +1,6 @@
 import pytest
 
+import numpy as np
 from astropy import units
 from py21cmsense import GaussianBeam, beam
 
@@ -22,3 +23,11 @@ def test_gaussian_beam():
 
     assert not hasattr(bm.dish_size_in_lambda(), "units")
     assert bm.area() == bm.area(150.0)
+
+    with pytest.raises(NotImplementedError):
+        GaussianBeam.from_uvbeam()
+
+    assert bm.uv_resolution == bm.dish_size_in_lambda()
+    assert bm.sq_area() < bm.area()
+    assert bm.fwhm() > bm.width()
+    assert bm.first_null() < np.pi / 2
