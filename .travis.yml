@@ -1,0 +1,18 @@
+# Travis configuration file using the build matrix feature
+# Read more under http://docs.travis-ci.com/user/build-configuration/
+
+sudo: required
+language: generic
+env:
+  matrix:
+    - PYTHON_VERSION=3.6
+    - PYTHON_VERSION=3.7
+install:
+  - sudo apt-get update
+  - source tests/travis_install.sh
+script:
+  - pytest
+  - pre-commit install
+  - pre-commit run --all-files
+after_success:
+  - codecov
