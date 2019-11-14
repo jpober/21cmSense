@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractclassmethod, abstractmethod, abstractproperty
 
 import attr
 from astropy import constants as cnst
@@ -21,33 +21,38 @@ class PrimaryBeam(ABC):
         """Return a clone of this instance, but change kwargs"""
         return attr.evolve(self, **kwargs)
 
+    @abstractmethod
     def area(self, freq=None):
         """Beam area (sr)"""
         pass
 
+    @abstractmethod
     def width(self, freq=None):
         """Beam width (rad)"""
         pass
 
+    @abstractmethod
     def first_null(self, freq=None):
         """An approximation of the first null of the beam"""
         pass
 
+    @abstractmethod
     def sq_area(self, freq=None):
         """The area of the beam^2"""
         pass
 
+    @abstractmethod
     def b_eff(self, freq=None):
         """Effective beam area (Parsons 2014)"""
         pass
 
-    @property
+    @abstractproperty
     def uv_resolution(self):
         pass
 
-    @classmethod
+    @abstractclassmethod
     def from_uvbeam(cls):
-        raise NotImplementedError("coming soon to a computer near you!")
+        pass
 
 
 @attr.s(frozen=True)
@@ -120,3 +125,7 @@ class GaussianBeam(PrimaryBeam):
     def uv_resolution(self):
         """The appropriate resolution of a UV cell given the beam size"""
         return self.dish_size_in_lambda()
+
+    @classmethod
+    def from_uvbeam(cls):
+        raise NotImplementedError("Coming Soon!")
