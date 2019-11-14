@@ -8,7 +8,6 @@ env:
     - PYTHON_VERSION=3.6
     - PYTHON_VERSION=3.7
 install:
-  - sudo apt-get update
   - source tests/travis_install.sh
 script:
   - pytest --cov=py21cmsense/
