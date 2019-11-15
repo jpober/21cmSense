@@ -10,6 +10,9 @@
   :target: https://www.gnu.org/licenses/gpl-3.0
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
   :target: https://github.com/psf/black
+.. image:: https://readthedocs.org/projects/21cmsense/badge/?version=latest
+  :target: https://21cmsense.readthedocs.io/en/latest/?badge=latest
+  :alt: Documentation Status
 
 A python package for calculating the expected sensitivities of 21cm experiments
 to the Epoch of Reionization and/or Cosmic Dawn power spectrum.
@@ -26,6 +29,10 @@ using ``conda`` rather than them being automatically installed with pip::
 Usage
 =====
 There are two ways to use this code: as a python library or via the CLI.
+More documentation on using the library can found
+`in the docs <https://21cmSense.readthedocs.org>`_, especially in the
+`getting started tutorial <https://21cmsense.readthedocs.io/en/latest/tutorials/getting_started.html>`_
+
 The simplest possible usage is by using the CLI as follows::
 
     $ sense calc-sense <SENSITIVITY_CONFIG_FILE.yml>
