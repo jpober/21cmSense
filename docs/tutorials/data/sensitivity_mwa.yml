@@ -1,0 +1,3 @@
+observation: observation_hera.yml
+horizon_buffer: 0.1
+p21: ps_EoS_z9.24.txt

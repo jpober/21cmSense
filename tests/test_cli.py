@@ -21,7 +21,7 @@ def observatory_config(tmpdirec):
     with open(path.join(example_configs, "observatory_hera.yml"), "r") as fl:
         observatory = yaml.load(fl, Loader=yaml.FullLoader)
 
-    observatory["antpos"]["nside"] = 3  # Just to make the test faster
+    observatory["antpos"]["hex_num"] = 3  # Just to make the test faster
 
     with open(path.join(tmpdirec, "observatory.yml"), "w") as fl:
         yaml.dump(observatory, fl)

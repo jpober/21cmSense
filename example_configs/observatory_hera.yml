@@ -5,7 +5,7 @@
 
 antpos:
   function: hera  # if antpos is a dict, it uses a function from antpos.py
-  nside: 7
+  hex_num: 7
   l: 14
   dl: 12.12
   units: m

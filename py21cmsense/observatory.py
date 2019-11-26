@@ -169,12 +169,17 @@ class Observatory:
         # as atomic quantities.
         return self.antpos[np.newaxis, :, :] - self.antpos[:, np.newaxis, :]
 
-    def projected_baselines(self, time_offset=0):
+    def projected_baselines(self, baselines=None, time_offset=0):
         """The *projected* baseline lengths (in wavelengths) phased to a point
         that has rotated off zenith by some time_offset.
 
         Parameters
         ----------
+        baselines : array_like, optional
+            The baseline co-ordinates to project, assumed to be in metres.
+            If not provided, uses all baselines of the observatory.
+            Shape of the array can be (N,N,3) or (N, 3).
+            The co-ordinates are expected to be in ENU.
         time_offset : float or Quantity
             The amount of time elapsed since the phase center was at zenith.
             Assumed to be in days unless otherwise defined. May be negative.
@@ -184,12 +189,16 @@ class Observatory:
         An array the same shape as :attr:`baselines_metres`, but phased to the
         new phase centre.
         """
-        bl_wavelengths = self.baselines_metres * self.metres_to_wavelengths
-        nants = bl_wavelengths.shape[0]
-        out = ut.phase_past_zenith(
-            time_offset, bl_wavelengths.reshape(nants ** 2, 3), self.latitude
-        )
-        return out.reshape((nants, nants, 3))
+        if baselines is None:
+            baselines = self.baselines_metres
+
+        baselines = ut.apply_or_convert_unit("m")(baselines)
+        orig_shape = baselines.shape
+
+        bl_wavelengths = baselines.reshape((-1, 3)) * self.metres_to_wavelengths
+
+        out = ut.phase_past_zenith(time_offset, bl_wavelengths, self.latitude)
+        return out.reshape(orig_shape)
 
     @cached_property
     def metres_to_wavelengths(self):
@@ -297,7 +306,7 @@ class Observatory:
 
         observation_duration = ut.apply_or_convert_unit("min")(observation_duration)
         integration_time = ut.apply_or_convert_unit("s")(integration_time)
-        assert integration_time < observation_duration
+        assert integration_time <= observation_duration
 
         return np.arange(
             -observation_duration.to("day").value / 2,
@@ -305,21 +314,44 @@ class Observatory:
             integration_time.to("day").value,
         )
 
+    def baseline_coords_from_groups(self, baseline_groups):
+        """Convert a dictionary of baseline groups to an array of ENU co-ordinates"""
+        out = np.zeros((len(baseline_groups), 3)) * units.m
+        for i, antpairs in enumerate(baseline_groups.values()):
+            out[i] = self.baselines_metres[antpairs[0][0], antpairs[0][1]]
+        return out
+
+    @staticmethod
+    def baseline_weights_from_groups(baseline_groups):
+        return np.array([len(antpairs) for antpairs in baseline_groups.values()])
+
     def grid_baselines(
         self,
-        integration_time,
+        baselines=None,
+        weights=None,
+        integration_time=60.0 * units.s,
         bl_min=0,
         bl_max=np.inf,
         observation_duration=None,
         ndecimals=0,
-        baseline_groups=None,
     ):
         """
         Grid baselines onto a pre-determined uvgrid, accounting for earth rotation.
 
         Parameters
         ----------
-        integration_time : float or Quantity
+        baselines : array_like, optional
+            The baseline co-ordinates to project, assumed to be in metres.
+            If not provided, calculates effective baselines by finding redundancies on
+            all baselines in the observatory. Shape of the array can be (N,N,3) or (N, 3).
+            The co-ordinates are expected to be in ENU. If `baselines` is provided,
+            `weights` must also be provided.
+        weights: array_like, optional
+            An array of the same length as `baselines`, giving the number of independent
+            baselines at each co-ordinate. If not provided, calculates effective
+            baselines by finding redundancies on all baselines in the observatory.
+            If `baselines` is provided, `weights` must also be provided.
+        integration_time : float or Quantity, optional
             The amount of time integrated into a snapshot visibility, assumed
             to be in seconds.
         bl_min : float or Quantity, optional
@@ -330,9 +362,6 @@ class Observatory:
             Amount of time in a single (coherent) LST bin, assumed to be in minutes.
         ndecimals : int, optional
             Number of decimals to which baselines must match to be considered redundant.
-        baseline_groups : array, optional
-            A dictionary of redundant baseline groups. Can be computed with :func:`baseline_groups`.
-            If not given, will be calculated on-the-fly.
 
         Returns
         -------
@@ -348,55 +377,49 @@ class Observatory:
         grid_basleine_incoherent :
             Incoherent sum over baseline groups of the output of this method.
         """
-        if baseline_groups is None:
+        if baselines is None:
             baseline_groups = self.get_redundant_baselines(
                 bl_min=bl_min, bl_max=bl_max, ndecimals=ndecimals
             )
+            baselines = self.baseline_coords_from_groups(baseline_groups)
+            weights = self.baseline_weights_from_groups(baseline_groups)
 
-        bl_max = self.longest_used_baseline(bl_max)
+        if weights is None:
+            raise ValueError(
+                "If baselines are provided, weights must also be provided."
+            )
 
         time_offsets = self.time_offsets_from_obs_int_time(
             integration_time, observation_duration
         )
-        uvws = np.empty(
-            (
-                len(time_offsets),
-                self.baselines_metres.shape[0],
-                self.baselines_metres.shape[1],
-                3,
-            )
-        )
 
         # Get all UVWs ahead of time.
-        for itime, time_offset in enumerate(time_offsets):
-            uvws[itime] = self.projected_baselines(time_offset)
-
-        # grid each baseline type into uv plane
-        # round to nearest odd
-        dim = len(self.ugrid(bl_max))
-
-        uvsum = np.zeros((len(baseline_groups), dim, dim))
-        for cnt, (key, antpairs) in enumerate(
+        uvws = np.empty((len(baselines), len(time_offsets), 3))
+        for itime, time_offset in enumerate(
             tqdm.tqdm(
-                baseline_groups.items(),
-                desc="gridding baselines",
-                unit="baselines",
+                time_offsets,
+                desc="computing UVWs",
+                unit="times",
                 disable=not config.PROGRESS,
             )
         ):
-            bl = antpairs[0]
-            nbls = len(antpairs)
-            i, j = bl
+            uvws[:, itime, :] = self.projected_baselines(baselines, time_offset)
 
-            for itime, time_offset in enumerate(time_offsets):
-                uvw = uvws[itime, i, j]
+        # grid each baseline type into uv plane
+        dim = len(self.ugrid(bl_max))
+        edges = self.ugrid_edges(bl_max)
 
-                self.beamgridder(
-                    xcen=uvw[0] / self.beam.uv_resolution,
-                    ycen=uvw[1] / self.beam.uv_resolution,
-                    uvgrid=uvsum[cnt],
-                    n=nbls,
-                )
+        uvsum = np.zeros((len(baselines), dim, dim))
+        for cnt, (uvw, nbls) in enumerate(
+            tqdm.tqdm(
+                zip(uvws, weights),
+                desc="gridding baselines",
+                unit="baselines",
+                disable=not config.PROGRESS,
+                total=len(weights),
+            )
+        ):
+            uvsum[cnt] = np.histogram2d(uvw[:, 0], uvw[:, 1], bins=edges)[0] * nbls
 
         return uvsum
 
@@ -434,16 +457,17 @@ class Observatory:
         # Grid from uv_res/2 to just past (or equal to) bl_max, in steps of resolution.
         positive = np.linspace(
             self.beam.uv_resolution / 2,
-            n_positive * self.beam.uv_resolution,
+            self.beam.uv_resolution / 2 + n_positive * self.beam.uv_resolution,
             n_positive + 1,
         )
-        edges = np.concatenate((positive[::-1], positive))
+        edges = np.concatenate((-positive[::-1], positive))
         return edges
 
     def ugrid(self, bl_max=np.inf):
         """Centres of the UV grid plane."""
         # Shift the edges by half a cell, and omit the last one
-        return (self.ugrid_edges(bl_max) + self.beam.uv_resolution / 2)[:-1]
+        edges = self.ugrid_edges(bl_max)
+        return (edges[1:] + edges[:-1]) / 2
 
     def grid_baselines_coherent(self, **kwargs):
         """

@@ -114,7 +114,6 @@ def calc_sense(
 
     np.savez(os.path.join(direc, fname), ks=sensitivity.k1d, **out)
 
-    print(out)
     if write_significance:
         sig = sensitivity.calculate_significance(
             thermal=thermal, sample=samplevar

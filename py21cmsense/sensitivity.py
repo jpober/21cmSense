@@ -257,6 +257,69 @@ class PowerSpectrum(Sensitivity):
 
         return self.p21(k)
 
+    @cached_property
+    def _nsamples_2d(self):
+        """
+        Mid-way product specifying thermal and sample variance over the 2D grid.
+        """
+
+        # set up blank arrays/dictionaries
+        sense = {"sample": {}, "thermal": {}, "both": {}}
+
+        # loop over uv_coverage to calculate k_pr
+        nonzero = np.where(self.uv_coverage > 0)
+        for iu, iv in tqdm.tqdm(
+            zip(nonzero[1], nonzero[0]),
+            desc="calculating 2D sensitivity",
+            unit="uv-bins",
+            disable=not config.PROGRESS,
+            total=len(nonzero[1]),
+        ):
+            u, v = self.observation.ugrid[iu], self.observation.ugrid[iv]
+            trms = self.observation.Trms[iv, iu]
+
+            if np.isinf(trms):
+                # No baselines in this UV cell
+                continue
+
+            umag = np.sqrt(u ** 2 + v ** 2)
+            k_perp = umag * conv.dk_du(self.observation.redshift)
+
+            hor = self.horizon_limit(umag)
+
+            if k_perp not in sense["thermal"]:
+                sense["thermal"][k_perp] = (
+                    np.zeros(len(self.observation.kparallel)) / un.mK ** 4
+                )
+                sense["sample"][k_perp] = (
+                    np.zeros(len(self.observation.kparallel)) / un.mK ** 4
+                )
+                sense["both"][k_perp] = (
+                    np.zeros(len(self.observation.kparallel)) / un.mK ** 4
+                )
+
+            # Exclude parallel modes dominated by foregrounds
+            kpars = self.observation.kparallel[self.observation.kparallel >= hor]
+            start = np.where(self.observation.kparallel >= hor)[0][0]
+
+            for i, k_par in enumerate(kpars, start=start):
+
+                thermal = self.thermal_noise(k_par, k_perp, trms)
+                sample = self.sample_noise(k_par, k_perp)
+
+                t = 1.0 / thermal ** 2
+                s = 1.0 / sample ** 2
+                ts = 1.0 / (thermal + sample) ** 2
+
+                sense["thermal"][k_perp][i] += t
+                sense["thermal"][k_perp][-i] += t
+                sense["sample"][k_perp][i] += s
+                sense["sample"][k_perp][-i] += s
+                sense["both"][k_perp][i] += ts
+                sense["both"][k_perp][-i] += ts
+
+        return sense
+
     @lru_cache()
     def calculate_sensitivity_2d(self, thermal=True, sample=True):
         """
@@ -275,50 +338,16 @@ class PowerSpectrum(Sensitivity):
             Keys are cylindrical kperp values and values are arrays aligned with
             `observation.kparallel`, defining uncertainty in mK^2.
         """
-        # set up blank arrays/dictionaries
-        sense = {}
 
         if not (thermal or sample):
             raise ValueError("Either thermal or sample must be True")
 
-        # loop over uv_coverage to calculate k_pr
-        nonzero = np.where(self.uv_coverage > 0)
-        for iu, iv in tqdm.tqdm(
-            zip(nonzero[1], nonzero[0]),
-            desc="calculating 2D sensitivity",
-            unit="uv-bins",
-            disable=not config.PROGRESS,
-            total=len(nonzero[1]),
-        ):
-            u, v = self.observation.ugrid[iu], self.observation.ugrid[iv]
-            trms = self.observation.Trms[iu, iv]
-
-            if np.isinf(trms):
-                # No baselines in this UV cell
-                continue
-
-            umag = np.sqrt(u ** 2 + v ** 2)
-            k_perp = umag * conv.dk_du(self.observation.redshift)
-
-            hor = self.horizon_limit(umag)
-
-            if k_perp not in sense:
-                sense[k_perp] = np.zeros(len(self.observation.kparallel)) / un.mK ** 4
-
-            # Exclude parallel modes dominated by foregrounds
-            kpars = self.observation.kparallel[self.observation.kparallel > hor]
-            start = np.where(self.observation.kparallel > hor)[0][0]
-
-            for i, k_par in enumerate(kpars, start=start):
-
-                val = 0
-                if thermal:
-                    val += self.thermal_noise(k_par, k_perp, trms)
-                if sample:
-                    val += self.sample_noise(k_par, k_perp)
-
-                sense[k_perp][i] += 1.0 / val ** 2
-                sense[k_perp][-i] += 1.0 / val ** 2
+        if thermal and not sample:
+            sense = self._nsamples_2d["thermal"]
+        elif sample and not thermal:
+            sense = self._nsamples_2d["sample"]
+        else:
+            sense = self._nsamples_2d["both"]
 
         # errors were added in inverse quadrature, now need to invert and take
         # square root to have error bars; also divide errors by number of indep. fields
@@ -383,7 +412,7 @@ class PowerSpectrum(Sensitivity):
         return sense1d
 
     @lru_cache()
-    def calculate_sensitivity_1d(self, thermal=True, sample=None):
+    def calculate_sensitivity_1d(self, thermal=True, sample=True):
         """Calculate a 1D sensitivity curve
 
         Parameters
@@ -402,7 +431,7 @@ class PowerSpectrum(Sensitivity):
         return self._average_sense_to_1d(sense)
 
     @lru_cache()
-    def calculate_significance(self, thermal=True, sample=None):
+    def calculate_significance(self, thermal=True, sample=True):
         """
         Calculate significance of a detection of the default cosmological power spectrum.
 
@@ -426,3 +455,29 @@ class PowerSpectrum(Sensitivity):
         X = np.dot(wA, wA.T)
         err = np.sqrt((1.0 / np.float(X)))
         return 1 / err
+
+    def plot_sense_2d(self, sense2d):
+        try:
+            import matplotlib.pyplot as plt
+        except ImportError:
+            raise ImportError("matplotlib is required to make plots...")
+
+        keys = list(sorted(sense2d.keys()))
+        x = np.array([v.value for v in keys])
+        x = (
+            np.repeat(x, len(self.observation.kparallel))
+            .reshape((len(x), len(self.observation.kparallel)))
+            .T
+        )
+        y = np.fft.fftshift(
+            np.repeat(self.observation.kparallel.value, x.shape[1]).reshape(
+                (len(self.observation.kparallel), x.shape[1])
+            )
+        )
+        C = np.array([np.fft.fftshift(sense2d[key]) for key in keys]).T
+
+        plt.pcolormesh(x, y, np.log10(C))
+        cbar = plt.colorbar()
+        cbar.set_label(r"$\log_{10} \delta \Delta^2$ [mK^2]", fontsize=14)
+        plt.xlabel(r"$k_\perp$ [h/Mpc]", fontsize=14)
+        plt.ylabel(r"$k_{||}$ [h/Mpc]", fontsize=14)

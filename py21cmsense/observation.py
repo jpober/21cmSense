@@ -157,6 +157,16 @@ class Observation:
             bl_min=self.bl_min, bl_max=self.bl_max, ndecimals=self.redundancy_tol
         )
 
+    @cached_property
+    def baseline_group_coords(self):
+        """Co-ordinates of baseline groups in metres"""
+        return self.observatory.baseline_coords_from_groups(self.baseline_groups)
+
+    @cached_property
+    def baseline_group_counts(self):
+        """The number of baselines in each group"""
+        return np.array([len(antpairs) for antpairs in self.baseline_groups.values()])
+
     @property
     def frequency(self):
         """Frequency of the observation"""
@@ -178,12 +188,13 @@ class Observation:
             fnc = self.observatory.grid_baselines_coherent
 
         grid = fnc(
+            baselines=self.baseline_group_coords,
+            weights=self.baseline_group_counts,
             integration_time=self.integration_time,
             bl_min=self.bl_min,
             bl_max=self.bl_max,
             observation_duration=self.obs_duration,
             ndecimals=self.redundancy_tol,
-            baseline_groups=self.baseline_groups,
         )
 
         return grid
@@ -249,17 +260,13 @@ class Observation:
     def ugrid(self):
         """Centres of the linear grid which defines a side of the UV grid corresponding
         to :func:`uv_coverage` and its derivative quantities."""
-        return self.observatory.ugrid(
-            self.bl_max * self.observatory.metres_to_wavelengths
-        )
+        return self.observatory.ugrid(self.bl_max)
 
     @cached_property
     def ugrid_edges(self):
         """Edges of the linear grid which defines a side of the UV grid corresponding
         to :func:`uv_coverage` and its derivative quantities."""
-        return self.observatory.ugrid_edges(
-            self.bl_max * self.observatory.metres_to_wavelengths
-        )
+        return self.observatory.ugrid_edges(self.bl_max)
 
     def clone(self, **kwargs):
         """Create a new instance of this instance, but with arbitrary changes to parameters."""
