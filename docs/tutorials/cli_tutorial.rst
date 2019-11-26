@@ -229,3 +229,6 @@ This command also outputs a file ``moderate_155.000 MHz.npz``, which contains th
 standard deviation of the dimensionless power spectrum.
 The output file also includes the 1D k values corresponding
 to the sensitivity arrays.
+By default, a simple plot is made of the 1D PS uncertainty, and is written to the file
+``moderate_155.000 MHz.png``. A prefix can be prepended to these filenames by using the
+``--prefix`` option, and the plotting can be turned off by setting ``--no-plot``.

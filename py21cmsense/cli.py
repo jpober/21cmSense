@@ -19,6 +19,13 @@ import yaml
 from . import observation
 from . import sensitivity as sense
 
+try:
+    import matplotlib.pyplot as plt
+
+    HAVE_MPL = True
+except ImportError:
+    HAVE_MPL = False
+
 main = click.Group()
 
 
@@ -76,8 +83,29 @@ def grid_baselines(configfile, direc):
     default=True,
     help="whether to write the significance of the PS to screen",
 )
+@click.option(
+    "-p/-P",
+    "--plot/--no-plot",
+    default=True,
+    help="whether to plot the 1D power spectrum uncertainty",
+)
+@click.option(
+    "--plot-title", default=None, type=str, help="title for the output 1D plot"
+)
+@click.option(
+    "--prefix", default="", type=str, help="string prefix for all output files"
+)
 def calc_sense(
-    configfile, array_file, direc, fname, thermal, samplevar, write_significance
+    configfile,
+    array_file,
+    direc,
+    fname,
+    thermal,
+    samplevar,
+    write_significance,
+    plot,
+    plot_title,
+    prefix,
 ):
     # If given an array-file, overwrite the "observation" parameter
     # in the config with the pickled array file, which has already
@@ -108,8 +136,10 @@ def calc_sense(
 
     # save results to output npz
     if fname is None:
-        fname = "{model}_{freq:.3f}.npz".format(
-            model=sensitivity.foreground_model, freq=sensitivity.observation.frequency
+        fname = "{pfx}{model}_{freq:.3f}.npz".format(
+            pfx=prefix + "_" if prefix else "",
+            model=sensitivity.foreground_model,
+            freq=sensitivity.observation.frequency,
         )
 
     np.savez(os.path.join(direc, fname), ks=sensitivity.k1d, **out)
@@ -119,3 +149,18 @@ def calc_sense(
             thermal=thermal, sample=samplevar
         )  # ... ?
         print("Significance of detection: ", sig)
+
+    if plot and HAVE_MPL:
+        for key, value in out.items():
+            plt.plot(sensitivity.k1d, value, label=key)
+        plt.xscale("log")
+        plt.yscale("log")
+        plt.legend()
+        plt.title(plot_title)
+        plt.savefig(
+            "{pfx}{model}_{freq:.3f}.png".format(
+                pfx=prefix + "_" if prefix else "",
+                model=sensitivity.foreground_model,
+                freq=sensitivity.observation.frequency,
+            )
+        )
