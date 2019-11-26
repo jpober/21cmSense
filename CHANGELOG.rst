@@ -2,7 +2,7 @@
 Changelog
 =========
 
-v3.0.0
+v2.0.0
 ======
 A major overhaul of the code, making it object-oriented and modular.
 
@@ -23,6 +23,7 @@ Features
 * More flexible: extra parameters for foreground model and integration time, among others.
 * Agreement with previous versions (not exact agreement, because of the increase in accuracy
   from using astropy).
+* Tools for plotting output -- and default 1D PS plot from the CLI.
 * All quantities have appropriate units (from astropy).
 * Example documentation, and example configuration files.
 * Configuration files are no longer python files... they are YAML.
