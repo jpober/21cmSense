@@ -1,0 +1,7 @@
+antpos: mwa_phase2_compact_antpos.txt
+beam:
+  class: GaussianBeam
+  frequency: 155    # By default, in MHz
+  dish_size: 4.0    # By default, in m
+latitude: -0.4660608447416767  # In radians
+Trcv: 100000

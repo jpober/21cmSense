@@ -32,8 +32,10 @@ There are two ways to use this code: as a python library or via the CLI.
 More documentation on using the library can found
 `in the docs <https://21cmSense.readthedocs.org>`_, especially in the
 `getting started tutorial <https://21cmsense.readthedocs.io/en/latest/tutorials/getting_started.html>`_
+A more involved introduction to the CLI can be found in the
+`CLI tutorial <https://21cmsense.readthedocs.io/en/latest/tutorials/cli_tutorial.html>`_.
 
-The simplest possible usage is by using the CLI as follows::
+As a taste, the simplest possible usage is by using the CLI as follows::
 
     $ sense calc-sense <SENSITIVITY_CONFIG_FILE.yml>
 

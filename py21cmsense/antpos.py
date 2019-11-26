@@ -11,7 +11,7 @@ from astropy import units as un
 from . import _utils as ut
 
 
-def hera(nside, l, dl, units="m"):
+def hera(hex_num, l, dl, units="m"):
     """
     Produce a simple regular hexagonal array.
 
@@ -19,7 +19,7 @@ def hera(nside, l, dl, units="m"):
 
     Parameters
     ----------
-    nside : int
+    hex_num : int
         Number of antennas per side of the hexagon
     separation : float or Quantity
         The distance between antennas along a side. If float, assumed to be in `units`.
@@ -49,8 +49,8 @@ def hera(nside, l, dl, units="m"):
 
     antpos = []
     cen_z = 0
-    for row in np.arange(nside):
-        for cen_x in np.arange((2 * nside - 1) - row):
+    for row in np.arange(hex_num):
+        for cen_x in np.arange((2 * hex_num - 1) - row):
             dx = row / 2.0
             antpos.append(((cen_x + dx) * separation.value, row * dl.value, cen_z))
             if row != 0:

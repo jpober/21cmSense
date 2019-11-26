@@ -65,25 +65,22 @@ def test_observatory(bm):
     )
 
 
-def test_beamgridder():
-    uvgrid = np.zeros((11, 11))
-    Observatory.beamgridder(0, 0, uvgrid, 1)
-    print(uvgrid)
-    assert uvgrid[5, 5] == 1
-
-    Observatory.beamgridder(5, 5, uvgrid, 1)
-    print(uvgrid)
-    assert uvgrid[-1, -1] == 1
-
-    Observatory.beamgridder(0.5, 0.5, uvgrid, 1)
-    assert uvgrid[6, 6] == 1
-
-    Observatory.beamgridder(-0.5, -0.5, uvgrid, 1)
-    assert uvgrid[4, 4] == 1
-
-
 @pytest.mark.skip
 def test_projected_baselines():
     obs = Observatory()
     assert obs.projected_baselines() == obs.baselines_metres
     pass
+
+
+def test_grid_baselines(bm):
+    a = Observatory(antpos=np.random.normal(loc=0, scale=50, size=(20, 3)), beam=bm)
+    bl_groups = a.get_redundant_baselines()
+    bl_coords = a.baseline_coords_from_groups(bl_groups)
+    bl_counts = a.baseline_weights_from_groups(bl_groups)
+
+    with pytest.raises(ValueError):
+        a.grid_baselines(bl_coords)
+
+    grid0 = a.grid_baselines()
+    grid1 = a.grid_baselines(bl_coords, bl_counts)
+    assert np.all(grid0 == grid1)
