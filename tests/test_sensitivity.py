@@ -54,3 +54,13 @@ def test_sensitivity_2d(observation):
     sense_thermal = ps.calculate_sensitivity_2d(thermal=True, sample=False)
     sense_full = ps.calculate_sensitivity_2d()
     assert all(np.all(sense_thermal[key] <= sense_full[key]) for key in sense_thermal)
+
+    with pytest.raises(ValueError):
+        ps.calculate_sensitivity_2d(thermal=False, sample=False)
+
+
+def test_plots(observation):
+    # this is a dumb test, just checking that it doesn't error.
+    ps = PowerSpectrum(observation=observation)
+    sense2d = ps.calculate_sensitivity_2d()
+    ps.plot_sense_2d(sense2d)

@@ -1,3 +1,4 @@
+import glob
 import traceback
 from os import path
 
@@ -94,6 +95,9 @@ def test_calc_sense_with_p21(runner, sensitivity_config_defined_p21):
         traceback.print_exception(*output.exc_info)
 
     assert output.exit_code == 0
+
+    # ensure a plot was created
+    assert glob.glob("*.png")
 
 
 def test_both(runner, tmpdirec, observation_config, sensitivity_config):

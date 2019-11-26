@@ -165,7 +165,7 @@ class Observation:
     @cached_property
     def baseline_group_counts(self):
         """The number of baselines in each group"""
-        return np.array([len(antpairs) for antpairs in self.baseline_groups.values()])
+        return self.observatory.baseline_weights_from_groups(self.baseline_groups)
 
     @property
     def frequency(self):

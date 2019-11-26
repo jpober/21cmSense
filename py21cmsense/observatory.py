@@ -136,30 +136,6 @@ class Observatory:
 
         return cls(antpos=antpos, beam=_beam, **data)
 
-    @staticmethod
-    def beamgridder(xcen, ycen, uvgrid, n):
-        """A function for updating a uvgrid with a baseline group
-
-        Parameters
-        ----------
-        xcen, ycen: float
-            The (x,y)-components of the baseline to be gridded, in units of the
-            `uvgrid` resolution.
-        uvgrid : array
-            The array to update with the new baseline group
-        n : int
-            Number of baselines in the baseline group.
-        """
-        size = uvgrid.shape[0]
-        cen = size // 2  # - 0.5  # correction for centering
-        xcen += cen
-        ycen += cen
-
-        if not (
-            round(ycen) > size - 1 or round(xcen) > size - 1 or ycen < 0 or xcen < 0
-        ):
-            uvgrid[int(round(ycen)), int(round(xcen))] += n  # single pixel gridder
-
     @cached_property
     def baselines_metres(self):
         """
