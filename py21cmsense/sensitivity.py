@@ -392,7 +392,7 @@ class PowerSpectrum(Sensitivity):
             tqdm.tqdm(
                 sense.keys(),
                 desc="averaging to 1D",
-                unit="kpar bins",
+                unit="kperp-bins",
                 disable=not config.PROGRESS,
             )
         ):
