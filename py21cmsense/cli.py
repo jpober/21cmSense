@@ -142,7 +142,7 @@ def calc_sense(
             freq=sensitivity.observation.frequency,
         )
 
-    np.savez(os.path.join(direc, fname), ks=sensitivity.k1d, **out)
+    np.savez(os.path.join(direc, fname), ks=sensitivity.k1d.value, **out)
 
     if write_significance:
         sig = sensitivity.calculate_significance(
