@@ -8,3 +8,8 @@ py21cmsense\.egg-info/
 *.pyc
 docs/_build/
 .ipynb_checkpoints/
+pip-wheel-metadata/
+.tox/
+*.pkl
+*.npz
+*.png
