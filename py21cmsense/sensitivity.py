@@ -462,7 +462,7 @@ class PowerSpectrum(Sensitivity):
         except ImportError:
             raise ImportError("matplotlib is required to make plots...")
 
-        keys = list(sorted(sense2d.keys()))
+        keys = sorted(sense2d.keys())
         x = np.array([v.value for v in keys])
         x = (
             np.repeat(x, len(self.observation.kparallel))

@@ -5,7 +5,7 @@ import numpy as np
 from astropy import units as un
 from astropy.coordinates import EarthLocation, SkyCoord
 from astropy.time import Time
-from pyuvdata import uvutils
+from pyuvdata import utils as uvutils
 
 from . import config
 
