@@ -253,7 +253,7 @@ class PowerSpectrum(Sensitivity):
         """Sample variance contribution at a particular k mode"""
         k = np.sqrt(k_par ** 2 + k_perp ** 2)
         vals = np.full(k.size, np.inf) * un.mK ** 2
-        good_ks = np.logical_or(k >= self.k_min, k <= self.k_max)
+        good_ks = np.logical_and(k >= self.k_min, k <= self.k_max)
         vals[good_ks] = self.p21(k[good_ks])
         return vals
 
