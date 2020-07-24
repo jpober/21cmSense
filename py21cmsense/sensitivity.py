@@ -252,10 +252,10 @@ class PowerSpectrum(Sensitivity):
     def sample_noise(self, k_par, k_perp):
         """Sample variance contribution at a particular k mode"""
         k = np.sqrt(k_par ** 2 + k_perp ** 2)
-        if k < self.k_min or k > self.k_max:
-            return np.inf
-
-        return self.p21(k)
+        vals = np.full(k.size, np.inf) * un.mK ** 2
+        good_ks = np.logical_or(k >= self.k_min, k <= self.k_max)
+        vals[good_ks] = self.p21(k[good_ks])
+        return vals
 
     @cached_property
     def _nsamples_2d(self):
