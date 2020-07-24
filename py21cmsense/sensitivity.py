@@ -278,10 +278,6 @@ class PowerSpectrum(Sensitivity):
             u, v = self.observation.ugrid[iu], self.observation.ugrid[iv]
             trms = self.observation.Trms[iv, iu]
 
-            if np.isinf(trms):
-                # No baselines in this UV cell
-                continue
-
             umag = np.sqrt(u ** 2 + v ** 2)
             k_perp = umag * conv.dk_du(self.observation.redshift)
 
@@ -297,26 +293,25 @@ class PowerSpectrum(Sensitivity):
                 sense["both"][k_perp] = (
                     np.zeros(len(self.observation.kparallel)) / un.mK ** 4
                 )
+            if not np.isinf(trms):
+                # Exclude parallel modes dominated by foregrounds
+                kpars = self.observation.kparallel[self.observation.kparallel >= hor]
+                start = np.where(self.observation.kparallel >= hor)[0][0]
+                n_inds = (self.observation.kparallel.size - 1) // 2 + 1
+                inds = np.arange(start=start, stop=n_inds)
 
-            # Exclude parallel modes dominated by foregrounds
-            kpars = self.observation.kparallel[self.observation.kparallel >= hor]
-            start = np.where(self.observation.kparallel >= hor)[0][0]
-
-            for i, k_par in enumerate(kpars, start=start):
-
-                thermal = self.thermal_noise(k_par, k_perp, trms)
-                sample = self.sample_noise(k_par, k_perp)
+                thermal = self.thermal_noise(kpars, k_perp, trms)
+                sample = self.sample_noise(kpars, k_perp)
 
                 t = 1.0 / thermal ** 2
                 s = 1.0 / sample ** 2
                 ts = 1.0 / (thermal + sample) ** 2
-
-                sense["thermal"][k_perp][i] += t
-                sense["thermal"][k_perp][-i] += t
-                sense["sample"][k_perp][i] += s
-                sense["sample"][k_perp][-i] += s
-                sense["both"][k_perp][i] += ts
-                sense["both"][k_perp][-i] += ts
+                sense["thermal"][k_perp][inds] += t
+                sense["thermal"][k_perp][-inds] += t
+                sense["sample"][k_perp][inds] += s
+                sense["sample"][k_perp][-inds] += s
+                sense["both"][k_perp][inds] += ts
+                sense["both"][k_perp][-inds] += ts
 
         return sense
 
