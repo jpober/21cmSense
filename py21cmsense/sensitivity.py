@@ -396,13 +396,11 @@ class PowerSpectrum(Sensitivity):
                 disable=not config.PROGRESS,
             )
         ):
-            for i, k_par in enumerate(self.observation.kparallel):
-                k = np.sqrt(k_par ** 2 + k_perp ** 2)
-                if np.abs(k) > self.k_max:
-                    continue
-
-                # add errors in inverse quadrature for further binning
-                sense1d_inv[ut.find_nearest(self.k1d, k)] += 1.0 / sense[k_perp][i] ** 2
+            k = np.sqrt(self.observation.kparallel ** 2 + k_perp ** 2)
+            good_ks = np.logical_and(self.k_min <= k, k <= self.k_max)
+            sense1d_inv[ut.find_nearest(self.k1d, k[good_ks])] += (
+                1.0 / sense[k_perp][good_ks] ** 2
+            )
 
         # invert errors and take square root again for final answer
         sense1d = np.zeros_like(sense1d_inv) * un.mK ** 6
