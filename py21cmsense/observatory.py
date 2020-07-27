@@ -314,7 +314,7 @@ class Observatory:
         bl_min=0,
         bl_max=np.inf,
         observation_duration=None,
-        ndecimals=0,
+        ndecimals=1,
     ):
         """
         Grid baselines onto a pre-determined uvgrid, accounting for earth rotation.
