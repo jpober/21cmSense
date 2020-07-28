@@ -2,6 +2,21 @@
 Changelog
 =========
 
+Unreleased
+==========
+
+Changed
+-------
+* Many computations altered to use numpy vectorization over for loop implementations.
+  Including but not limited to:
+
+    * 2D sensitivity calculation.
+    * 1D sensitivity calculation.
+    * UVW calculation as a function of time.
+
+* ``_utils.find_nearest`` can solve for the index of an array of inputs.
+
+
 v2.0.0
 ======
 A major overhaul of the code, making it object-oriented and modular.

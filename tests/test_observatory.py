@@ -83,4 +83,4 @@ def test_grid_baselines(bm):
 
     grid0 = a.grid_baselines()
     grid1 = a.grid_baselines(bl_coords, bl_counts)
-    assert np.all(grid0 == grid1)
+    assert np.allclose(grid0, grid1)

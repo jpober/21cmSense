@@ -252,10 +252,10 @@ class PowerSpectrum(Sensitivity):
     def sample_noise(self, k_par, k_perp):
         """Sample variance contribution at a particular k mode"""
         k = np.sqrt(k_par ** 2 + k_perp ** 2)
-        if k < self.k_min or k > self.k_max:
-            return np.inf
-
-        return self.p21(k)
+        vals = np.full(k.size, np.inf) * un.mK ** 2
+        good_ks = np.logical_and(k >= self.k_min, k <= self.k_max)
+        vals[good_ks] = self.p21(k[good_ks])
+        return vals
 
     @cached_property
     def _nsamples_2d(self):
@@ -278,10 +278,6 @@ class PowerSpectrum(Sensitivity):
             u, v = self.observation.ugrid[iu], self.observation.ugrid[iv]
             trms = self.observation.Trms[iv, iu]
 
-            if np.isinf(trms):
-                # No baselines in this UV cell
-                continue
-
             umag = np.sqrt(u ** 2 + v ** 2)
             k_perp = umag * conv.dk_du(self.observation.redshift)
 
@@ -297,26 +293,25 @@ class PowerSpectrum(Sensitivity):
                 sense["both"][k_perp] = (
                     np.zeros(len(self.observation.kparallel)) / un.mK ** 4
                 )
+            if not np.isinf(trms):
+                # Exclude parallel modes dominated by foregrounds
+                kpars = self.observation.kparallel[self.observation.kparallel >= hor]
+                start = np.where(self.observation.kparallel >= hor)[0][0]
+                n_inds = (self.observation.kparallel.size - 1) // 2 + 1
+                inds = np.arange(start=start, stop=n_inds)
 
-            # Exclude parallel modes dominated by foregrounds
-            kpars = self.observation.kparallel[self.observation.kparallel >= hor]
-            start = np.where(self.observation.kparallel >= hor)[0][0]
-
-            for i, k_par in enumerate(kpars, start=start):
-
-                thermal = self.thermal_noise(k_par, k_perp, trms)
-                sample = self.sample_noise(k_par, k_perp)
+                thermal = self.thermal_noise(kpars, k_perp, trms)
+                sample = self.sample_noise(kpars, k_perp)
 
                 t = 1.0 / thermal ** 2
                 s = 1.0 / sample ** 2
                 ts = 1.0 / (thermal + sample) ** 2
-
-                sense["thermal"][k_perp][i] += t
-                sense["thermal"][k_perp][-i] += t
-                sense["sample"][k_perp][i] += s
-                sense["sample"][k_perp][-i] += s
-                sense["both"][k_perp][i] += ts
-                sense["both"][k_perp][-i] += ts
+                sense["thermal"][k_perp][inds] += t
+                sense["thermal"][k_perp][-inds] += t
+                sense["sample"][k_perp][inds] += s
+                sense["sample"][k_perp][-inds] += s
+                sense["both"][k_perp][inds] += ts
+                sense["both"][k_perp][-inds] += ts
 
         return sense
 
@@ -396,13 +391,11 @@ class PowerSpectrum(Sensitivity):
                 disable=not config.PROGRESS,
             )
         ):
-            for i, k_par in enumerate(self.observation.kparallel):
-                k = np.sqrt(k_par ** 2 + k_perp ** 2)
-                if np.abs(k) > self.k_max:
-                    continue
-
-                # add errors in inverse quadrature for further binning
-                sense1d_inv[ut.find_nearest(self.k1d, k)] += 1.0 / sense[k_perp][i] ** 2
+            k = np.sqrt(self.observation.kparallel ** 2 + k_perp ** 2)
+            good_ks = np.logical_and(self.k_min <= k, k <= self.k_max)
+            sense1d_inv[ut.find_nearest(self.k1d, k[good_ks])] += (
+                1.0 / sense[k_perp][good_ks] ** 2
+            )
 
         # invert errors and take square root again for final answer
         sense1d = np.zeros_like(sense1d_inv) * un.mK ** 6

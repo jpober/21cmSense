@@ -2,8 +2,9 @@
 Utility functions for 21cmSense.
 """
 import numpy as np
+import tqdm
 from astropy import units as un
-from astropy.coordinates import EarthLocation, SkyCoord
+from astropy.coordinates import ICRS, EarthLocation, SkyCoord
 from astropy.time import Time
 from pyuvdata import utils as uvutils
 
@@ -71,8 +72,7 @@ def nonnegative(instance, att, x):
 
 def find_nearest(array, value):
     """Find closest value in `array` to `value`"""
-    idx = (np.abs(array - value)).argmin()
-    return idx
+    return np.abs(array.reshape(-1, 1) - value).argmin(0)
 
 
 def trunc(x, ndecimals=0):
@@ -90,7 +90,7 @@ def phase(jd, ra, dec, telescope_location, uvws0):
 
     Parameters
     ----------
-    jd : float
+    jd : float or array_like of float
         The Julian date of the observation.
     ra : float
         The ra to phase to in radians.
@@ -111,22 +111,11 @@ def phase(jd, ra, dec, telescope_location, uvws0):
 
     frame_phase_center = SkyCoord(ra=ra, dec=dec, unit="radian", frame="icrs")
 
-    obs_time = Time(jd, format="jd")
-    telescope_loc_xyz = uvutils.XYZ_from_LatLonAlt(
-        telescope_location.lat.rad,
-        telescope_location.lon.rad,
-        telescope_location.height,
-    )
+    obs_time = Time(np.atleast_1d(jd), format="jd")
 
-    itrs_telescope_location = SkyCoord(
-        x=telescope_loc_xyz[0] * un.m,
-        y=telescope_loc_xyz[1] * un.m,
-        z=telescope_loc_xyz[2] * un.m,
-        frame="itrs",
-        obstime=obs_time,
-    )
+    itrs_telescope_location = telescope_location.get_itrs(obstime=obs_time)
 
-    frame_telescope_location = itrs_telescope_location.transform_to("icrs")
+    frame_telescope_location = itrs_telescope_location.transform_to(ICRS)
     frame_telescope_location.representation_type = "cartesian"
 
     uvw_ecef = uvutils.ECEF_from_ENU(
@@ -135,27 +124,35 @@ def phase(jd, ra, dec, telescope_location, uvws0):
         telescope_location.lon.rad,
         telescope_location.height,
     )
+    unique_times, r_inds = np.unique(obs_time, return_inverse=True)
+    uvws = np.zeros((uvw_ecef.shape[0], unique_times.size, 3), dtype=np.float64)
+    for ind, jd in tqdm.tqdm(
+        enumerate(unique_times),
+        desc="computing UVWs",
+        total=len(unique_times),
+        unit="times",
+        disable=not config.PROGRESS or unique_times.size == 1,
+    ):
+        itrs_uvw_coord = SkyCoord(
+            x=uvw_ecef[:, 0] * un.m,
+            y=uvw_ecef[:, 1] * un.m,
+            z=uvw_ecef[:, 2] * un.m,
+            frame="itrs",
+            obstime=jd,
+        )
+        frame_uvw_coord = itrs_uvw_coord.transform_to("icrs")
 
-    itrs_uvw_coord = SkyCoord(
-        x=uvw_ecef[:, 0] * un.m,
-        y=uvw_ecef[:, 1] * un.m,
-        z=uvw_ecef[:, 2] * un.m,
-        frame="itrs",
-        obstime=obs_time,
-    )
-    frame_uvw_coord = itrs_uvw_coord.transform_to("icrs")
+        # this takes out the telescope location in the new frame,
+        # so these are vectors again
+        frame_rel_uvw = (
+            frame_uvw_coord.cartesian.get_xyz().value.T
+            - frame_telescope_location[ind].cartesian.get_xyz().value
+        )
 
-    # this takes out the telescope location in the new frame,
-    # so these are vectors again
-    frame_rel_uvw = (
-        frame_uvw_coord.cartesian.get_xyz().value.T
-        - frame_telescope_location.cartesian.get_xyz().value
-    )
-
-    uvws = uvutils.phase_uvw(
-        frame_phase_center.ra.rad, frame_phase_center.dec.rad, frame_rel_uvw
-    )
-    return uvws
+        uvws[:, ind, :] = uvutils.phase_uvw(
+            frame_phase_center.ra.rad, frame_phase_center.dec.rad, frame_rel_uvw
+        )
+    return uvws[:, r_inds, :]
 
 
 def phase_past_zenith(time_past_zenith, uvws0, latitude):

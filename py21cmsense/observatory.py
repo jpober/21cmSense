@@ -174,7 +174,12 @@ class Observatory:
         bl_wavelengths = baselines.reshape((-1, 3)) * self.metres_to_wavelengths
 
         out = ut.phase_past_zenith(time_offset, bl_wavelengths, self.latitude)
-        return out.reshape(orig_shape)
+
+        out = out.reshape(*orig_shape[:-1], np.size(time_offset), orig_shape[-1])
+        if np.size(time_offset) == 1:
+            out = out.squeeze(-2)
+
+        return out
 
     @cached_property
     def metres_to_wavelengths(self):
@@ -309,7 +314,7 @@ class Observatory:
         bl_min=0,
         bl_max=np.inf,
         observation_duration=None,
-        ndecimals=0,
+        ndecimals=1,
     ):
         """
         Grid baselines onto a pre-determined uvgrid, accounting for earth rotation.
@@ -369,17 +374,9 @@ class Observatory:
             integration_time, observation_duration
         )
 
-        # Get all UVWs ahead of time.
-        uvws = np.empty((len(baselines), len(time_offsets), 3))
-        for itime, time_offset in enumerate(
-            tqdm.tqdm(
-                time_offsets,
-                desc="computing UVWs",
-                unit="times",
-                disable=not config.PROGRESS,
-            )
-        ):
-            uvws[:, itime, :] = self.projected_baselines(baselines, time_offset)
+        uvws = self.projected_baselines(baselines, time_offsets).reshape(
+            baselines.shape[0], time_offsets.size, 3
+        )
 
         # grid each baseline type into uv plane
         dim = len(self.ugrid(bl_max))
