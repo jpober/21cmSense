@@ -39,11 +39,9 @@ jobs:
           if [[ "${{ runner.os }}" = "Windows" ]]; then
             echo "::add-path::$HOME/miniconda3"
             echo "::add-path::$HOME/miniconda3/Scripts"
-            echo "::set-env name=ENV_NAME::pyuvdata_tests_windows"
           else
             echo "::add-path::$HOME/miniconda3/bin"
             echo "::add-path::$HOME/miniconda3/envs/test/bin"
-            echo "::set-env name=ENV_NAME::pyuvdata_tests"
           fi
       - name: Run Tox Suite
         shell: bash
