@@ -72,8 +72,7 @@ def nonnegative(instance, att, x):
 
 def find_nearest(array, value):
     """Find closest value in `array` to `value`"""
-    idx = np.abs(array.reshape(-1, 1) - value).argmin(0)
-    return idx
+    return np.abs(array.reshape(-1, 1) - value).argmin(0)
 
 
 def trunc(x, ndecimals=0):
