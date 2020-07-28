@@ -33,6 +33,7 @@ dev_rq = docs_req + ["pre-commit", "pytest", "matplotlib", "tox"]
 
 setup_args = {
     "name": "py21cmsense",
+    "data_files": [("", ["LICENSE.rst"])],
     "version": find_version("py21cmsense", "__init__.py"),
     "license": read("LICENSE.rst"),
     "long_description": "%s\n%s"
