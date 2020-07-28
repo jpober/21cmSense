@@ -49,4 +49,4 @@ jobs:
           pip install tox tox-conda
           ls
           pwd -P
-          tox -p
+          tox
