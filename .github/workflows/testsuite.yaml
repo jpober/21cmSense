@@ -49,4 +49,6 @@ jobs:
         shell: bash
         run: |
           pip install tox tox-conda
+          ls
+          pwd -P
           tox -p
