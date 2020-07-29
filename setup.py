@@ -4,20 +4,14 @@ from __future__ import absolute_import, print_function
 
 import io
 import re
-from os import listdir
 from os.path import dirname, join
 from setuptools import find_packages, setup
 
 
 def read(*names, **kwargs):
-    try:
-        return io.open(
-            join(dirname(__file__), *names), encoding=kwargs.get("encoding", "utf8")
-        ).read()
-    except FileNotFoundError:
-        print("Looking in:", dirname(__file__))
-        print("What's here:", listdir())
-        raise
+    return io.open(
+        join(dirname(__file__), *names), encoding=kwargs.get("encoding", "utf8")
+    ).read()
 
 
 def find_version(*file_paths):
