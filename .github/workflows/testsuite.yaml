@@ -7,6 +7,7 @@ jobs:
     env:
       PYTHON: 3.6
       OS: ${{ matrix.os }}
+      CONDA_EXE: conda
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
