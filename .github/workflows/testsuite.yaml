@@ -33,4 +33,4 @@ jobs:
         run: pip install tox tox-conda tox-gh-actions
 
       - name: Run Tests
-          tox
+        run: tox
