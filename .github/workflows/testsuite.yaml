@@ -4,9 +4,10 @@ on: [push, pull_request]
 jobs:
   tox:
     name: Tox Test Suite
-    env:
-      OS: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -l {0}
     strategy:
       fail-fast: false
       matrix:
@@ -24,13 +25,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Conda Info
-        shell: bash -l {0}
         run: |
           conda info
           python --version
 
       - name: Run Tox Suite
-        shell: bash -l {0}
         run: |
           pip install tox tox-conda
           ls
