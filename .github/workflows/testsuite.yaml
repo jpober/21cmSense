@@ -16,23 +16,12 @@ jobs:
       - uses: actions/checkout@master
         with:
           fetch-depth: 1
+      - name: Setup Miniconda
+        uses: goanpeca/setup-miniconda@v1.6.0
+        with:
+          sauto-update-conda: true
+          python-version: $PYTHON
 
-      - name: Install Miniconda
-        shell: bash
-        run: |
-          if [[ "${{ runner.os }}" = "Linux" ]]; then
-            MINICONDA_FILENAME=Miniconda3-latest-Linux-x86_64.sh
-            curl -L -o $MINICONDA_FILENAME "https://repo.continuum.io/miniconda/$MINICONDA_FILENAME"
-            bash ${MINICONDA_FILENAME} -b -f -p $HOME/miniconda3
-          elif [[ "${{ runner.os }}" = "macOS" ]]; then
-            MINICONDA_FILENAME=Miniconda3-latest-MacOSX-x86_64.sh
-            curl -L -o $HOME/miniconda.sh "https://repo.continuum.io/miniconda/$MINICONDA_FILENAME"
-            bash $HOME/miniconda.sh -b -p $HOME/miniconda3
-          elif [[ "${{ runner.os }}" = "Windows" ]]; then
-            MINICONDA_FILENAME=Miniconda3-latest-Windows-x86_64.exe
-            curl -L -o $MINICONDA_FILENAME "https://repo.continuum.io/miniconda/$MINICONDA_FILENAME"
-            ./Miniconda3-latest-Windows-x86_64.exe //InstallationType=JustMe //RegisterPython=0 //S
-          fi
       - name: Setup paths
         shell: bash
         run: |
@@ -50,7 +39,6 @@ jobs:
           if [[ "${{ runner.os }}" = "Windows" ]]; then
             echo $HOME
             echo $PATH
-            export CONDA_EXE=conda
           fi
           pip install tox tox-conda
           ls
