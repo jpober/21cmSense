@@ -7,7 +7,6 @@ jobs:
     env:
       PYTHON: 3.6
       OS: ${{ matrix.os }}
-      CONDA_EXE: conda
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -44,6 +43,8 @@ jobs:
             echo "::add-path::$HOME/miniconda3/bin"
             echo "::add-path::$HOME/miniconda3/envs/test/bin"
           fi
+          echo $HOME
+          echo $PATH
       - name: Run Tox Suite
         shell: bash
         run: |
