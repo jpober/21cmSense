@@ -43,11 +43,15 @@ jobs:
             echo "::add-path::$HOME/miniconda3/bin"
             echo "::add-path::$HOME/miniconda3/envs/test/bin"
           fi
-          echo $HOME
-          echo $PATH
+
       - name: Run Tox Suite
         shell: bash
         run: |
+          if [[ "${{ runner.os }}" = "Windows" ]]; then
+            echo $HOME
+            echo $PATH
+            export CONDA_EXE=conda
+          fi
           pip install tox tox-conda
           ls
           pwd -P
