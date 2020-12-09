@@ -23,12 +23,15 @@ sys.path.append('calibration_files/')
 
 #============================SIMPLE GRIDDING FUNCTION=======================
 
+mgr = n.mgrid
+nz = n.zeros
+
 def beamgridder(xcen,ycen,size):
-    crds = n.mgrid[0:size,0:size]
+    crds = mgr[0:size,0:size]
     cen = size/2 - 0.5 # correction for centering
     xcen += cen
     ycen = -1*ycen + cen
-    beam = n.zeros((size,size))
+    beam = nz((size,size))
     if round(ycen) > size - 1 or round(xcen) > size - 1 or ycen < 0. or xcen <0.: 
         return beam
     else:
@@ -48,6 +51,7 @@ else:
     obs_duration = prms['obs_duration']*(0.15/opts.freq) #scales observing time linearly with frequency to account for change in beam FWHM
     name = prms['name']+'_drift'; print name
 dish_size_in_lambda = prms['dish_size_in_lambda']
+print obs_duration
 
 #==========================FIDUCIAL OBSERVATION PARAMETERS===================
 
@@ -74,15 +78,18 @@ obs_lst = aa.sidereal_time()
 obs_zen = a.phs.RadioFixedBody(obs_lst,aa.lat)
 obs_zen.compute(aa) #observation is phased to zenith of the center time of the drift 
 
+uvw = aa.gen_uvw
 #find redundant baselines
 bl_len_min = opts.bl_min / (a.const.c/(ref_fq*1e11)) #converts meters to lambda
 bl_len_max = 0.
+min_bl_len = 100.
 for i in xrange(nants):
     print 'working on antenna %i of %i' % (i+1, len(aa))
     for j in xrange(nants):
         if i == j: continue #no autocorrelations
-        u,v,w = aa.gen_uvw(i,j,src=obs_zen)
+        u,v,w = uvw(i,j,src=obs_zen)
         bl_len = n.sqrt(u**2 + v**2)
+	if min_bl_len > bl_len : min_bl_len = bl_len 
         if bl_len > bl_len_max: bl_len_max = bl_len
         if bl_len < bl_len_min: continue
 	if round(u,1) == 0.0: u = 0.0
@@ -93,29 +100,39 @@ for i in xrange(nants):
         else: uvbins[uvbin].append('%i,%i' % (i,j))
 print 'There are %i baseline types' % len(uvbins.keys())
 
+print 'The shortest baseline is %.2f meters' % (min_bl_len*(a.const.c/(ref_fq*1e11))) #1e11 converts from GHz to cm
 print 'The longest baseline is %.2f meters' % (bl_len_max*(a.const.c/(ref_fq*1e11))) #1e11 converts from GHz to cm
 if opts.bl_max: 
     bl_len_max = opts.bl_max / (a.const.c/(ref_fq*1e11)) #units of wavelength
     print 'The longest baseline being included is %.2f m' % (bl_len_max*(a.const.c/(ref_fq*1e11)))
 
+def beamfortime(time, dimen): #Function to speed up calculation in loop
+    aa.set_jultime(time)
+    lst = aa.sidereal_time()
+    obs_zen.compute(aa)
+    bl = uvbins[uvbin][0]
+    i, j = bl.split(',')
+    i, j = int(i), int(j)
+    u,v,w = uvw(i,j,src=obs_zen)
+    _beam = beamgridder(xcen=u/dish_size_in_lambda, ycen=v/dish_size_in_lambda, size=int(dimen))
+    return _beam
+
 #grid each baseline type into uv plane
-dim = n.round(bl_len_max/dish_size_in_lambda)*2 + 1 # round to nearest odd
-uvsum,quadsum = n.zeros((int(dim),int(dim))), n.zeros((int(dim),int(dim))) #quadsum adds all non-instantaneously-redundant baselines incoherently
+dim = n.round(bl_len_max/dish_size_in_lambda)*2 + 1 #round to nearest odd
+uvsum, quadsum = nz((int(dim),int(dim))), nz((int(dim),int(dim))) #quadsum adds all non-instantaneously-redundant baselines incoherently
+uvplstr = nz((len(times),int(dim),int(dim)))
 for cnt, uvbin in enumerate(uvbins):
     print 'working on %i of %i uvbins' % (cnt+1, len(uvbins))
-    uvplane = n.zeros((int(dim),int(dim)))
+    k = 0
+    uvplane = nz((int(dim),int(dim)))
     for t in times:
-        aa.set_jultime(t)
-        lst = aa.sidereal_time()
-        obs_zen.compute(aa)
-        bl = uvbins[uvbin][0]
-        nbls = len(uvbins[uvbin])
-        i, j = bl.split(',')
-        i, j = int(i), int(j)
-        u,v,w = aa.gen_uvw(i,j,src=obs_zen)
-        _beam = beamgridder(xcen=u/dish_size_in_lambda,ycen=v/dish_size_in_lambda,size=int(dim))
-        uvplane += nbls*_beam
-        uvsum += nbls*_beam
+	nbls = len(uvbins[uvbin])
+	_beam_ = beamfortime(time=t, dimen=dim)
+        uvplstr[k] = nbls*_beam_
+	k += 1
+    for ii in range(0,k):
+	uvplane += uvplstr[ii]
+    uvsum += uvplane 
     quadsum += (uvplane)**2
 
 quadsum = quadsum**.5

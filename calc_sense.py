@@ -88,7 +88,8 @@ bm = 1.13*(2.35*(0.45/dish_size_in_lambda))**2
 nchan = opts.nchan
 kpls = dk_deta(z) * n.fft.fftfreq(nchan,B/nchan)
 
-Tsky = 60e3 * (3e8/(array['freq']*1e9))**2.55  # sky temperature in mK
+Tsky = 180e3 * (array['freq']*1e3/180)**-2.5  # sky temperature in mK
+Tsys = Tsky #Trx not being added here as Tsky being calculated according to given formula
 n_lstbins = opts.n_per_day*60./obs_duration
 
 #===============================EOR MODEL===================================
@@ -143,7 +144,6 @@ for iu,iv in zip(nonzero[1], nonzero[0]):
        if k > n.max(mk): continue
        tot_integration = uv_coverage[iv,iu] * opts.ndays
        delta21 = p21(k)
-       Tsys = Tsky + Trx
        bm2 = bm/2. #beam^2 term calculated for Gaussian; see Parsons et al. 2014
        bm_eff = bm**2 / bm2 # this can obviously be reduced; it isn't for clarity
        scalar = X2Y(z) * bm_eff * B * k**3 / (2*n.pi**2)
@@ -175,8 +175,11 @@ for ind,kbin in enumerate(sense1d):
     sense1d[ind] = kbin**-.5
     Tsense1d[ind] = Tsense1d[ind]**-.5
 
+#save the power spectrum in an array
+power = p21(kmag)
+
 #save results to output npz
-n.savez('%s_%s_%.3f.npz' % (name,opts.model,array['freq']),ks=kmag,errs=sense1d,T_errs=Tsense1d)
+n.savez('%s_%s_%.3f.npz' % (name,opts.model,array['freq']), ks=kmag, errs=sense1d, T_errs=Tsense1d, ps21=power)
 
 #calculate significance with least-squares fit of amplitude
 A = p21(kmag)
