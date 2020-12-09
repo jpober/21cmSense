@@ -23,6 +23,8 @@ python plot_sense.py [*.npz]
 Image of the calculated sensitivity and saves a .csv file for the same.
 ([*.npz] is name of earlier generated array file from calc_sense.py)
 
+Please direct any Questions, comments, or feedback about the edits to pallav16 <at> iiserb <dot> ac <dot> in.
+
 ===============================================================================
 
 Dependencies:
@@ -104,4 +106,4 @@ noise_interp2d:
 
 
 
-Questions, comments, or feedback should be directed to jpober <at> uw <dot> edu.If you use this code in any of your work, please acknowledge Pober et al. 2013AJ....145...65P and Pober et al. 2014ApJ...782...66P and provide a link to this repository.
+Questions, comments, or feedback should be directed to jpober <at> uw <dot> edu. If you use this code in any of your work, please acknowledge Pober et al. 2013AJ....145...65P and Pober et al. 2014ApJ...782...66P and provide a link to this repository.
