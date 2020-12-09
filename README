@@ -65,6 +65,12 @@ This is the main portion of the package.  To run with defaults, it should only n
 [Edits by Pallav Chanda: Changed system, antenna temperature model and minor changes.]
 
 
+calc_sense_mcquinn.py
+[Written by Pallav Chanda, available in main-pallav branch]
+
+This code modifies calc_sense.py to implement formulae from McQuinn (2008). Please check main-pallav branch for further details.
+
+
 plot_sense.py:
 [Added by Pallav Chanda]
 
