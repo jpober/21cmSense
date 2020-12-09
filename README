@@ -12,7 +12,6 @@ DO THE FOLLOWING TO RUN:
 
 python fast_mk_array_file.py -C hera127
 This generates an array file for calc_sense. Change calibration file as needed from calibration_files folder (DO NOT include folder_name and .py, eg. mwa_compact replaces hera127 for MWA Compact).
-(Do not run mk_array_file as it uses bits out of deprecated numpy and may not work.)
 
 python calc_sense.py [*.npz]
 Calculates sensitivity
