@@ -38,6 +38,7 @@ healpy (Tested on v1.13.0)
 
 There are two main code pieces: mk_array_file.py and calc_sense.py.  The array files produced by mk_array_file are the inputs to calc_sense.py.  The inputs to mk_array_file.py are calibration files, which are also python scripts, but not executable.  Each of these components will be described in turn.
 
+
 calibration files:
 
 These files will contain all the information about the array you are trying to calculate sensitivities for.  Most importantly, they contain the positions of all the antennas, but also information about the antenna size and system temperature.  Few calibration files have been included in the folder calibration_files for use with this package.  To modify for other arrays, you should only need to change the values in the "ARRAY SPECIFIC PARAMETERS" section.
@@ -54,6 +55,7 @@ fast_mk_array_file.py:
 [Added by Pallav Chanda]
 
 Implements 3-D arrays for storing data and also a few function definitions in mk_array_file.py so as to speed up the code by as much as 10-12% while consuming 4-6 times the memory. The user can choose to use it depending on machine configuration.
+
 
 calc_sense.py:
 
