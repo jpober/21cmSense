@@ -129,7 +129,7 @@ class PowerSpectrum(Sensitivity):
         validator=ut.nonnegative,
     )
     foreground_model = attr.ib(
-        default="moderate", validator=vld.in_(["moderate", "optimistic"])
+        default="moderate", validator=vld.in_(["moderate", "optimistic", "ideal"])
     )
     k_21 = attr.ib(_K21_DEFAULT, converter=_kconverter)
     delta_21 = attr.ib(
@@ -370,14 +370,20 @@ class PowerSpectrum(Sensitivity):
         float :
             Horizon limit, in h/Mpc.
         """
-        horizon = (
-            conv.dk_deta(self.observation.redshift) * umag / self.observation.frequency
-        )
+        if self.foreground_model != "ideal":
+            horizon = (
+                conv.dk_deta(self.observation.redshift)
+                * umag
+                / self.observation.frequency
+            )
+
         # calculate horizon limit for baseline of length umag
         if self.foreground_model in ["moderate", "pessimistic"]:
             return horizon + self.horizon_buffer
         elif self.foreground_model in ["optimistic"]:
             return horizon * np.sin(self.observation.observatory.beam.first_null() / 2)
+        elif self.foreground_model == "ideal":
+            return self.horizon_buffer
 
     def _average_sense_to_1d(self, sense):
         """Bin 2D sensitivity down to 1D"""
