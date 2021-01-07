@@ -5,6 +5,10 @@ Changelog
 Unreleased
 ==========
 
+Fixed
+-----
+* Bug in ``dL_df`` (missing square).
+
 Changed
 -------
 * Many computations altered to use numpy vectorization over for loop implementations.

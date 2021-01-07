@@ -78,7 +78,7 @@ def dL_df(z, cosmo=Planck15):
     z : float
         The redshift
     """
-    return (cosmo.h * cnst.c * (1 + z) / (z2f(z) * cosmo.H(z) * u.littleh)).to(
+    return (cosmo.h * cnst.c * (1 + z) ** 2 / (z2f(z) * cosmo.H(z) * u.littleh)).to(
         "Mpc/(MHz*littleh)"
     )
 
