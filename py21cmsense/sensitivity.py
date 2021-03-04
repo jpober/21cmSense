@@ -377,7 +377,7 @@ class PowerSpectrum(Sensitivity):
         if self.foreground_model in ["moderate", "pessimistic"]:
             return horizon + self.horizon_buffer
         elif self.foreground_model in ["optimistic"]:
-            return horizon * np.sin(self.observation.observatory.beam.first_null / 2)
+            return horizon * np.sin(self.observation.observatory.beam.first_null() / 2)
 
     def _average_sense_to_1d(self, sense):
         """Bin 2D sensitivity down to 1D"""

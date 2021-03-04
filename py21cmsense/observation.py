@@ -229,13 +229,15 @@ class Observation:
         return conv.f2z(self.frequency)
 
     @cached_property
+    def eta(self):
+        return np.fft.fftfreq(self.n_channels, self.bandwidth / self.n_channels)
+
+    @cached_property
     def kparallel(self):
         """1D array of kparallel values, defined by the bandwidth and number of channels.
         Order of the values is the same as `fftfreq` (i.e. zero-first)
         """
-        return conv.dk_deta(self.redshift) * np.fft.fftfreq(
-            self.n_channels, self.bandwidth / self.n_channels
-        )
+        return conv.dk_deta(self.redshift) * self.eta
 
     @cached_property
     def total_integration_time(self):
