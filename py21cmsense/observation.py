@@ -132,12 +132,14 @@ class Observation:
                 "yaml_file must be a string filepath or a raw dict from such a file."
             )
 
-        if isinstance(data["observatory"], str) and isinstance(yaml_file, str):
-            # Assume it's a filename, prepend the directory that this file is in.
-            if not path.isabs(data["observatory"]):
-                data["observatory"] = path.join(
-                    path.dirname(yaml_file), data["observatory"]
-                )
+        if (
+            isinstance(data["observatory"], str)
+            and isinstance(yaml_file, str)
+            and not path.isabs(data["observatory"])
+        ):
+            data["observatory"] = path.join(
+                path.dirname(yaml_file), data["observatory"]
+            )
 
         observatory = obs.Observatory.from_yaml(data.pop("observatory"))
         return cls(observatory=observatory, **data)

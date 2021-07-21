@@ -7,6 +7,7 @@ for the length specified instead of that set by the primary beam.
 """
 from __future__ import division, print_function
 
+import logging
 import os
 import pickle
 import tempfile
@@ -27,6 +28,9 @@ except ImportError:
     HAVE_MPL = False
 
 main = click.Group()
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("py21cmsense")
 
 
 @main.command()
