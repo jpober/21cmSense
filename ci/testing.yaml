@@ -1,0 +1,21 @@
+name: testing
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - astropy
+  - cached_property
+  - click
+  - future
+  - numpy
+  - pip
+  - pre-commit
+  - pyyaml
+  - pyuvdata
+  - pytest
+  - pytest-cov
+  - scipy
+  - tqdm
+  - matplotlib
+  - pip:
+    - methodtools
