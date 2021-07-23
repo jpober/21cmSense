@@ -1,7 +1,7 @@
 
 \.idea/
 
-py21cmsense/__pycache__/
+__pycache__/
 
 py21cmsense\.egg-info/
 
@@ -13,3 +13,9 @@ pip-wheel-metadata/
 *.pkl
 *.npz
 *.png
+.coverage
+.coverage.*
+.cache
+coverage.xml
+*,cover
+.pytest_cache
