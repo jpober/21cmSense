@@ -5,11 +5,9 @@ This replaces the original usage of an aipy.AntennaArray with something much mor
 simple, and suited to the needs of this particular package.
 """
 
+import attr
 import collections
 import logging
-from collections import defaultdict
-
-import attr
 import numpy as np
 import tqdm
 import yaml
@@ -17,6 +15,7 @@ from astropy import constants as cnst
 from astropy import units as units
 from attr import validators as vld
 from cached_property import cached_property
+from collections import defaultdict
 
 from . import _utils as ut
 from . import antpos as antpos_module

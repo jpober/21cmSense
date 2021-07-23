@@ -2,10 +2,11 @@
 # -*- encoding: utf-8 -*-
 from __future__ import absolute_import, print_function
 
+from setuptools import find_packages, setup
+
 import io
 import re
 from os.path import dirname, join
-from setuptools import find_packages, setup
 
 
 def read(*names, **kwargs):

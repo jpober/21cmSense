@@ -1,9 +1,9 @@
-import pickle
-
 import pytest
 
 import numpy as np
+import pickle
 from astropy import units
+
 from py21cmsense import GaussianBeam, Observation, Observatory
 
 

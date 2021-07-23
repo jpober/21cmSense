@@ -4,16 +4,15 @@ an interferometric observation.
 """
 from __future__ import division, print_function
 
-import collections
-from os import path
-
 import attr
+import collections
 import numpy as np
 import yaml
 from astropy import units
 from attr import converters as cnv
 from attr import validators as vld
 from cached_property import cached_property
+from os import path
 
 from . import _utils as ut
 from . import conversions as conv
