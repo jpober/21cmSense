@@ -32,8 +32,8 @@ jobs:
           pre-commit install
           pre-commit run -a
 
-  tox:
-    name: Tox Test Suite
+  tests:
+    name: Test Suite
     runs-on: ${{ matrix.os }}
     defaults:
       run:

@@ -37,16 +37,19 @@ otherwise your changes will likely fail continuous integration.
 
     git clone git@github.com:your_name_here/21cmSense.git
 
-2. Create a branch for local development::
+2. Install `pre-commit <https://pre-commit.com/>`_ to do style checking automatically::
+
+    pre-commit install
+
+3. Create a branch for local development::
 
     git checkout -b name-of-your-bugfix-or-feature
 
-3. When you're done making changes, run all the checks, doc builder and spell checker
-   with `tox <http://tox.readthedocs.io/en/latest/install.html>`_ one command::
+4. When you're done making changes, run all the checks with `pytest <https://docs.pytest.org/en/latest/>`_::
 
-    tox
+    pytest
 
-4. Commit your changes and push your branch to GitHub::
+5. Commit your changes and push your branch to GitHub::
 
     git add .
     git commit -m "Your detailed description of your changes."
@@ -59,18 +62,3 @@ Pull Request Guidelines
 
 If you need some code review or feedback while you're developing the code just make the
 pull request. You can mark the PR as a draft until you are happy for it to be merged.
-
-Tips
-----
-
-To run a subset of tests::
-
-    tox -e envname -- py.test -k test_myfeature
-
-To run all the test environments in *parallel* with tox>=3.7::
-
-    tox -p
-
-For older versions of tox<3.7 (you need to ``pip install detox``)::
-
-    detox

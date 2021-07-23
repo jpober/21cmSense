@@ -23,7 +23,7 @@ def find_version(*file_paths):
 
 
 docs_req = ["sphinx>=1.3", "sphinx-rtd-theme", "numpydoc", "nbsphinx", "ipython"]
-dev_rq = docs_req + ["pre-commit", "pytest", "matplotlib", "tox"]
+dev_rq = docs_req + ["pre-commit", "pytest", "matplotlib"]
 
 setup_args = {
     "name": "py21cmsense",
