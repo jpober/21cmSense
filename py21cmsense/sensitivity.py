@@ -5,20 +5,19 @@ This module modularizes the previous version's `calc_sense.py`, and enables
 multiple sensitivity kinds to be defined. By default, a PowerSpectrum sensitivity class
 is provided, which offers the same results as previous versions.
 """
-import os
-import pickle
-from collections.abc import Mapping
-from os import path
-
 import attr
 import numpy as np
+import os
+import pickle
 import tqdm
 import yaml
 from astropy import units as un
 from astropy.cosmology import Planck15
 from attr import validators as vld
 from cached_property import cached_property
+from collections.abc import Mapping
 from methodtools import lru_cache
+from os import path
 from scipy import interpolate
 
 from . import _utils as ut

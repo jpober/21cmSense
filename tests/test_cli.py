@@ -1,11 +1,11 @@
-import glob
-import traceback
-from os import path
-
 import pytest
 
+import glob
+import traceback
 import yaml
 from click.testing import CliRunner
+from os import path
+
 from py21cmsense import cli
 
 here = path.dirname(path.abspath(__file__))

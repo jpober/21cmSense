@@ -1,6 +1,5 @@
-from abc import ABC, abstractclassmethod, abstractmethod, abstractproperty
-
 import attr
+from abc import ABC, abstractclassmethod, abstractmethod, abstractproperty
 from astropy import constants as cnst
 from astropy import units as un
 

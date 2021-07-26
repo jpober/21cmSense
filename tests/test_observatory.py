@@ -2,6 +2,7 @@ import pytest
 
 import numpy as np
 from astropy import units
+
 from py21cmsense import Observatory
 from py21cmsense.beam import GaussianBeam
 
@@ -84,3 +85,21 @@ def test_grid_baselines(bm):
     grid0 = a.grid_baselines()
     grid1 = a.grid_baselines(bl_coords, bl_counts)
     assert np.allclose(grid0, grid1)
+
+
+def test_min_max_antpos(bm):
+    a = Observatory(
+        antpos=np.array([np.linspace(0, 50, 11), np.zeros(11), np.zeros(11)]).T,
+        beam=bm,
+        min_antpos=7,
+    )
+
+    assert len(a.antpos) == 9
+
+    a = Observatory(
+        antpos=np.array([np.linspace(0, 50, 11), np.zeros(11), np.zeros(11)]).T,
+        beam=bm,
+        max_antpos=10,
+    )
+
+    assert len(a.antpos) == 2

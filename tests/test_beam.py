@@ -2,6 +2,7 @@ import pytest
 
 import numpy as np
 from astropy import units
+
 from py21cmsense import GaussianBeam, beam
 
 

@@ -7,14 +7,14 @@ for the length specified instead of that set by the primary beam.
 """
 from __future__ import division, print_function
 
+import click
+import logging
+import numpy as np
 import os
 import pickle
 import tempfile
-from os import path
-
-import click
-import numpy as np
 import yaml
+from os import path
 
 from . import observation
 from . import sensitivity as sense
@@ -27,6 +27,9 @@ except ImportError:
     HAVE_MPL = False
 
 main = click.Group()
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("py21cmsense")
 
 
 @main.command()
