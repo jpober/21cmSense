@@ -44,8 +44,9 @@ class Observatory:
         Receiver temperature, assumed to be in mK unless otherwise defined.
     min_antpos, max_antpos
         The minimum/maximum radial distance to include antennas (from the origin
-        of the array). Can be used to limit antennas in arrays like HERA and SKA that
-        have a "core" and "outriggers".
+        of the array). Assumed to be in units of meters if no units are supplied.
+        Can be used to limit antennas in arrays like HERA and SKA that
+        have a "core" and "outriggers". The minimum is inclusive, and maximum exclusive.
     """
 
     _antpos = attr.ib(converter=ut.apply_or_convert_unit("m"))
@@ -58,8 +59,8 @@ class Observatory:
     Trcv = attr.ib(
         1e5, converter=ut.apply_or_convert_unit("mK"), validator=ut.nonnegative
     )
-    max_antpos: float = attr.ib(default=np.inf)
-    min_antpos: float = attr.ib(default=0.0)
+    max_antpos: float = attr.ib(default=np.inf, converter=ut.apply_or_convert_unit("m"))
+    min_antpos: float = attr.ib(default=0.0, converter=ut.apply_or_convert_unit("m"))
 
     @_antpos.validator
     def _antpos_validator(self, att, val):
@@ -74,7 +75,8 @@ class Observatory:
         sq_len = np.sum(np.square(self._antpos), axis=1)
         antpos = self._antpos[
             np.logical_and(
-                sq_len <= self.max_antpos ** 2, sq_len >= self.min_antpos ** 2
+                sq_len >= self.min_antpos ** 2,
+                sq_len < self.max_antpos ** 2,
             )
         ]
 

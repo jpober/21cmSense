@@ -89,7 +89,7 @@ def test_grid_baselines(bm):
 
 def test_min_max_antpos(bm):
     a = Observatory(
-        antpos=np.array([np.linsapce(0, 50, 11), np.zeros(11), np.zeros(11)]),
+        antpos=np.array([np.linspace(0, 50, 11), np.zeros(11), np.zeros(11)]).T,
         beam=bm,
         min_antpos=7,
     )
@@ -97,7 +97,7 @@ def test_min_max_antpos(bm):
     assert len(a.antpos) == 9
 
     a = Observatory(
-        antpos=np.array([np.linsapce(0, 50, 11), np.zeros(11), np.zeros(11)]),
+        antpos=np.array([np.linspace(0, 50, 11), np.zeros(11), np.zeros(11)]).T,
         beam=bm,
         max_antpos=10,
     )
