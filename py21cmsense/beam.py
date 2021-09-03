@@ -1,5 +1,6 @@
+"""Simplistic beam definitions."""
 import attr
-from abc import ABC, abstractclassmethod, abstractmethod, abstractproperty
+from abc import ABCMeta, abstractmethod, abstractproperty
 from astropy import constants as cnst
 from astropy import units as un
 
@@ -7,50 +8,51 @@ from . import _utils as ut
 
 
 @attr.s(frozen=True)
-class PrimaryBeam(ABC):
-    """
-    A Base class defining a Primary Beam and the methods it requires to define.
-    """
+class PrimaryBeam(metaclass=ABCMeta):
+    """A Base class defining a Primary Beam and the methods it requires to define."""
 
     frequency = attr.ib(
         converter=ut.apply_or_convert_unit("MHz"), validator=ut.positive
     )
 
     def new(self, **kwargs):
-        """Return a clone of this instance, but change kwargs"""
+        """Return a clone of this instance, but change kwargs."""
         return attr.evolve(self, **kwargs)
 
     @abstractmethod
     def area(self, freq=None):
-        """Beam area (sr)"""
+        """Beam area [units: sr]."""
         pass
 
     @abstractmethod
     def width(self, freq=None):
-        """Beam width (rad)"""
+        """Beam width [units: rad]."""
         pass
 
     @abstractmethod
     def first_null(self, freq=None):
-        """An approximation of the first null of the beam"""
+        """An approximation of the first null of the beam."""
         pass
 
     @abstractmethod
     def sq_area(self, freq=None):
-        """The area of the beam^2"""
+        """The area of the beam^2."""
         pass
 
     @abstractmethod
     def b_eff(self, freq=None):
-        """Effective beam area (Parsons 2014)"""
+        """Effective beam area (Parsons 2014)."""
         pass
 
     @abstractproperty
     def uv_resolution(self):
+        """The resolution of the beam in Fourier UV space."""
         pass
 
-    @abstractclassmethod
+    @classmethod
+    @abstractmethod
     def from_uvbeam(cls):
+        """Generate the beam object from a :class:`pyuvdata.UVBeam` object."""
         pass
 
 
@@ -87,27 +89,31 @@ class GaussianBeam(PrimaryBeam):
         return 1.13 * self.fwhm(freq) ** 2
 
     def width(self, freq=None):
-        """The width of the beam (i.e. sigma), in radians
+        """The width of the beam (i.e. sigma), in radians.
 
         If frequency is not given, uses the instance's `frequency`
         """
         return un.rad * 0.45 / self.dish_size_in_lambda(freq)
 
     def fwhm(self, freq=None):
-        """The full-width half maximum of the beam
+        """The full-width half maximum of the beam.
 
         If frequency is not given, uses the instance's `frequency`
         """
         return 2.35 * self.width(freq)
 
     def sq_area(self, freq=None):
-        """The integral of the squared beam, in sr
+        """The integral of the squared beam, in sr.
 
         If frequency is not given, uses the instance's `frequency`
         """
         return self.area(freq) / 2
 
     def b_eff(self, freq=None):
+        r"""Get the effective beam area.
+
+        Defined as :math:`(\int B(\Omega) d \Omega)^2 / \int B^2 d\Omega`.
+        """
         return self.area(freq) ** 2 / self.sq_area(freq)
 
     def first_null(self, freq=None):
@@ -122,9 +128,10 @@ class GaussianBeam(PrimaryBeam):
 
     @property
     def uv_resolution(self):
-        """The appropriate resolution of a UV cell given the beam size"""
+        """The appropriate resolution of a UV cell given the beam size."""
         return self.dish_size_in_lambda()
 
     @classmethod
     def from_uvbeam(cls):
+        """Construct the beam from a :class:`pyuvdata.UVBeam` object."""
         raise NotImplementedError("Coming Soon!")

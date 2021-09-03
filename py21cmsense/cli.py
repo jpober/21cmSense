@@ -1,10 +1,4 @@
-#! /usr/bin/env python
-"""
-Creates an array file for use by sensitivity.py.  The main product is the uv coverage produced by the array during the
-time it takes the sky to drift through the primary beam; other array parameters are also saved.
-Array specific information comes from an aipy cal file.  If track is set, produces the uv coverage
-for the length specified instead of that set by the primary beam.
-"""
+"""CLI routines for 21cmSense."""
 from __future__ import division, print_function
 
 import click
@@ -15,6 +9,8 @@ import pickle
 import tempfile
 import yaml
 from os import path
+from pathlib import Path
+from rich.logging import RichHandler
 
 from . import observation
 from . import sensitivity as sense
@@ -28,7 +24,11 @@ except ImportError:
 
 main = click.Group()
 
-logging.basicConfig(level=logging.INFO)
+FORMAT = "%(message)s"
+logging.basicConfig(
+    level=logging.INFO, format=FORMAT, datefmt="[%X]", handlers=[RichHandler()]
+)
+
 logger = logging.getLogger("py21cmsense")
 
 
@@ -40,20 +40,30 @@ logger = logging.getLogger("py21cmsense")
     help="directory to save output file",
     default=".",
 )
-def grid_baselines(configfile, direc):
+@click.option(
+    "--outfile",
+    "-o",
+    type=click.Path(exists=False, dir_okay=False, file_okay=True),
+    help="filename of output file",
+    default=None,
+)
+def grid_baselines(configfile, direc, outfile):
+    """Grid baselines according to CONFIGFILE."""
     obs = observation.Observation.from_yaml(configfile)
 
-    filepath = os.path.join(
-        direc,
-        "drift_blmin%0.f_blmax%0.f_%.3fGHz_arrayfile.pkl"
-        % (obs.bl_min.value, obs.bl_max.value, obs.frequency.to("GHz").value),
-    )
+    if outfile is None:
+        outfile = Path(direc) / (
+            f"drift_blmin{obs.bl_min.value:.3f}_blmax{obs.bl_max.value:.3f}_"
+            f"{obs.frequency.to('GHz').value:.3f}GHz_arrayfile.pkl"
+        )
+    elif not Path(outfile).is_absolute():
+        outfile = Path(direc) / outfile
 
-    with open(filepath, "wb") as fl:
+    with open(outfile, "wb") as fl:
         pickle.dump(obs, fl)
 
-    print("There are {} baseline types".format(len(obs.baseline_groups)))
-    print("Saving array file as {}".format(filepath))
+    logger.info(f"There are {len(obs.baseline_groups)} baseline types")
+    logger.info(f"Saving array file as {outfile}")
 
 
 @main.command()
@@ -110,6 +120,11 @@ def calc_sense(
     plot_title,
     prefix,
 ):
+    """Calculate the sensitivity of an array.
+
+    This is the primary command of 21cmSense, and can be run independently for a
+    complete sensitivity calculation.
+    """
     # If given an array-file, overwrite the "observation" parameter
     # in the config with the pickled array file, which has already
     # calculated the uv_coverage, hopefully.
@@ -123,47 +138,18 @@ def calc_sense(
             yaml.dump(cfg, fl)
 
     sensitivity = sense.PowerSpectrum.from_yaml(configfile)
-
-    out = {}
-    if thermal:
-        print("Getting Thermal Variance")
-        out["thermal"] = sensitivity.calculate_sensitivity_1d(sample=False)
-    if samplevar:
-        print("Getting Sample Variance")
-        out["sample"] = sensitivity.calculate_sensitivity_1d(thermal=False, sample=True)
-    if thermal and samplevar:
-        print("Getting Combined Variance")
-        out["sample+thermal"] = sensitivity.calculate_sensitivity_1d(
-            thermal=True, sample=True
-        )
-
-    # save results to output npz
-    if fname is None:
-        fname = "{pfx}{model}_{freq:.3f}.npz".format(
-            pfx=prefix + "_" if prefix else "",
-            model=sensitivity.foreground_model,
-            freq=sensitivity.observation.frequency,
-        )
-
-    np.savez(os.path.join(direc, fname), ks=sensitivity.k1d.value, **out)
+    sensitivity.write(filename=fname, thermal=thermal, sample=samplevar, prefix=prefix)
 
     if write_significance:
-        sig = sensitivity.calculate_significance(
-            thermal=thermal, sample=samplevar
-        )  # ... ?
-        print("Significance of detection: ", sig)
+        sig = sensitivity.calculate_significance(thermal=thermal, sample=samplevar)
+        logger.info(f"Significance of detection: {sig}")
 
     if plot and HAVE_MPL:
-        for key, value in out.items():
-            plt.plot(sensitivity.k1d, value, label=key)
-        plt.xscale("log")
-        plt.yscale("log")
-        plt.legend()
-        plt.title(plot_title)
-        plt.savefig(
-            "{pfx}{model}_{freq:.3f}.png".format(
-                pfx=prefix + "_" if prefix else "",
-                model=sensitivity.foreground_model,
-                freq=sensitivity.observation.frequency,
-            )
+        fig = sensitivity.plot_sense_1d(thermal=thermal, sample=samplevar)
+        if plot_title:
+            plt.title(plot_title)
+        prefix + "_" if prefix else ""
+        fig.savefig(
+            f"{prefix}{sensitivity.foreground_model}_"
+            f"{sensitivity.observation.frequency:.3f}.png"
         )

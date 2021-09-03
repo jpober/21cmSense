@@ -3,35 +3,6 @@ on: [push, pull_request]
 
 
 jobs:
-  linter:
-    name: Linter
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        # Adding -l {0} helps ensure conda can be found properly.
-        shell: bash -l {0}
-    env:
-      PYTHON: 3.8
-      ENV_NAME: linting
-    steps:
-      - uses: actions/checkout@master
-        with:
-          fetch-depth: 1
-
-      - name: Setup Miniconda
-        uses: conda-incubator/setup-miniconda@v2.0.0
-        with:
-          auto-update-conda: true
-          miniconda-version: "latest"
-          python-version: ${{ env.PYTHON }}
-          environment-file: ci/${{ env.ENV_NAME }}.yaml
-          activate-environment: ${{ env.ENV_NAME }}
-
-      - name: Linting
-        run: |
-          pre-commit install
-          pre-commit run -a
-
   tests:
     name: Test Suite
     runs-on: ${{ matrix.os }}
@@ -44,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: [3.6, 3.7, 3.8]
+        python-version: [3.7, 3.8, 3.9]
     steps:
       - uses: actions/checkout@master
         with:
@@ -54,6 +25,9 @@ jobs:
         uses: conda-incubator/setup-miniconda@v2.0.0
         with:
           auto-update-conda: true
+          mamba-version: "*"
+          channels: conda-forge,defaults
+          channel-priority: true
           python-version: ${{ matrix.python-version }}
           environment-file: ci/${{ env.ENV_NAME }}.yaml
           activate-environment: ${{ env.ENV_NAME }}
@@ -68,7 +42,7 @@ jobs:
           pip install .[test]
           python -m pytest --cov=py21cmsense --cov-config=.coveragerc --cov-report xml:./coverage.xml --junitxml=test-reports/xunit.xml
 
-      - uses: codecov/codecov-action@v1.5.2
+      - uses: codecov/codecov-action@v2
         if: success()
         with:
           file: ./coverage.xml #optional

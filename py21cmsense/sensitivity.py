@@ -5,7 +5,11 @@ This module modularizes the previous version's `calc_sense.py`, and enables
 multiple sensitivity kinds to be defined. By default, a PowerSpectrum sensitivity class
 is provided, which offers the same results as previous versions.
 """
+from __future__ import annotations
+
 import attr
+import h5py
+import logging
 import numpy as np
 import os
 import pickle
@@ -18,6 +22,7 @@ from cached_property import cached_property
 from collections.abc import Mapping
 from methodtools import lru_cache
 from os import path
+from pathlib import Path
 from scipy import interpolate
 
 from . import _utils as ut
@@ -32,6 +37,8 @@ _K21_DEFAULT, _D21_DEFAULT = np.genfromtxt(
         "data/ps_no_halos_nf0.521457_z9.50_useTs0_zetaX-1.0e+00_200_400Mpc_v2",
     )
 ).T[:2]
+
+logger = logging.getLogger(__name__)
 
 
 @attr.s(kw_only=True)
@@ -67,6 +74,7 @@ class Sensitivity:
 
     @classmethod
     def from_yaml(cls, yaml_file):
+        """Construct a :class:`Sensitivity` object from a YAML configuration."""
         data = cls._load_yaml(yaml_file)
 
         klass = data.pop("class", cls)
@@ -93,11 +101,10 @@ def _kconverter(val):
     if not hasattr(val, "unit"):
         # Assume it has the 1/Mpc units (default from 21cmFAST)
         return val * un.littleh / un.Mpc / Planck15.h
-    else:
-        try:
-            return val.to("littleh/Mpc")
-        except un.UnitConversionError:
-            return ((val / Planck15.h) * un.littleh).to("littleh/Mpc")
+    try:
+        return val.to("littleh/Mpc")
+    except un.UnitConversionError:
+        return ((val / Planck15.h) * un.littleh).to("littleh/Mpc")
 
 
 @attr.s(kw_only=True)
@@ -196,7 +203,7 @@ class PowerSpectrum(Sensitivity):
 
     @cached_property
     def k_max(self):
-        """maximum k value to use in estimates"""
+        """Maximum k value to use in estimates."""
         return self.k_21.max()
 
     @cached_property
@@ -208,14 +215,12 @@ class PowerSpectrum(Sensitivity):
 
     @cached_property
     def X2Y(self):
-        """Cosmological scaling factor X^2*Y (eg. Parsons 2012)"""
+        """Cosmological scaling factor X^2*Y (eg. Parsons 2012)."""
         return conv.X2Y(self.observation.redshift)
 
     @cached_property
     def uv_coverage(self):
-        """
-        The UV-coverage of the array, with unused/statistically redundant baselines masked to zero
-        """
+        """The UV-coverage of the array, with unused/redundant baselines set to zero."""
         grid = self.observation.uv_coverage.copy()
         size = grid.shape[0]
 
@@ -243,13 +248,13 @@ class PowerSpectrum(Sensitivity):
         ).to("")
 
     def thermal_noise(self, k_par, k_perp, trms):
-        """Thermal noise contribution at particular k mode"""
+        """Thermal noise contribution at particular k mode."""
         k = np.sqrt(k_par ** 2 + k_perp ** 2)
         scalar = self.power_normalisation(k)
         return scalar * trms ** 2
 
     def sample_noise(self, k_par, k_perp):
-        """Sample variance contribution at a particular k mode"""
+        """Sample variance contribution at a particular k mode."""
         k = np.sqrt(k_par ** 2 + k_perp ** 2)
         vals = np.full(k.size, np.inf) * un.mK ** 2
         good_ks = np.logical_and(k >= self.k_min, k <= self.k_max)
@@ -258,10 +263,7 @@ class PowerSpectrum(Sensitivity):
 
     @cached_property
     def _nsamples_2d(self):
-        """
-        Mid-way product specifying thermal and sample variance over the 2D grid.
-        """
-
+        """Mid-way product specifying thermal and sample variance over the 2D grid."""
         # set up blank arrays/dictionaries
         sense = {"sample": {}, "thermal": {}, "both": {}}
 
@@ -332,16 +334,17 @@ class PowerSpectrum(Sensitivity):
             Keys are cylindrical kperp values and values are arrays aligned with
             `observation.kparallel`, defining uncertainty in mK^2.
         """
-
-        if not (thermal or sample):
-            raise ValueError("Either thermal or sample must be True")
-
-        if thermal and not sample:
+        if thermal and sample:
+            logger.info("Getting Combined Variance")
+            sense = self._nsamples_2d["both"]
+        elif thermal:
+            logger.info("Getting Thermal Variance")
             sense = self._nsamples_2d["thermal"]
-        elif sample and not thermal:
+        elif sample:
+            logger.info("Getting Sample Variance")
             sense = self._nsamples_2d["sample"]
         else:
-            sense = self._nsamples_2d["both"]
+            raise ValueError("Either thermal or sample must be True")
 
         # errors were added in inverse quadrature, now need to invert and take
         # square root to have error bars; also divide errors by number of indep. fields
@@ -379,16 +382,14 @@ class PowerSpectrum(Sensitivity):
             return horizon * np.sin(self.observation.observatory.beam.first_null / 2)
 
     def _average_sense_to_1d(self, sense):
-        """Bin 2D sensitivity down to 1D"""
+        """Bin 2D sensitivity down to 1D."""
         sense1d_inv = np.zeros(len(self.k1d)) / un.mK ** 4
 
-        for ind, k_perp in enumerate(
-            tqdm.tqdm(
-                sense.keys(),
-                desc="averaging to 1D",
-                unit="kperp-bins",
-                disable=not config.PROGRESS,
-            )
+        for k_perp in tqdm.tqdm(
+            sense.keys(),
+            desc="averaging to 1D",
+            unit="kperp-bins",
+            disable=not config.PROGRESS,
         ):
             k = np.sqrt(self.observation.kparallel ** 2 + k_perp ** 2)
             good_ks = np.logical_and(self.k_min <= k, k <= self.k_max)
@@ -405,7 +406,7 @@ class PowerSpectrum(Sensitivity):
 
     @lru_cache()
     def calculate_sensitivity_1d(self, thermal=True, sample=True):
-        """Calculate a 1D sensitivity curve
+        """Calculate a 1D sensitivity curve.
 
         Parameters
         ----------
@@ -421,6 +422,11 @@ class PowerSpectrum(Sensitivity):
         """
         sense = self.calculate_sensitivity_2d(thermal=thermal, sample=sample)
         return self._average_sense_to_1d(sense)
+
+    @property
+    def delta_squared(self):
+        """The fiducial 21cm power spectrum evaluated at :attr:`k1d`."""
+        return self.p21(self.k1d)
 
     @lru_cache()
     def calculate_significance(self, thermal=True, sample=True):
@@ -442,13 +448,11 @@ class PowerSpectrum(Sensitivity):
         mask = np.logical_and(self.k1d >= self.k_min, self.k1d <= self.k_max)
         sense1d = self.calculate_sensitivity_1d(thermal=thermal, sample=sample)
 
-        A = self.p21(self.k1d[mask])
-        wA = A / sense1d[mask]
-        X = np.dot(wA, wA.T)
-        err = np.sqrt((1.0 / np.float(X)))
-        return 1 / err
+        snr = self.delta_squared[mask] / sense1d[mask]
+        return np.sqrt(float(np.dot(snr, snr.T)))
 
     def plot_sense_2d(self, sense2d):
+        """Create a colormap plot of the sensitivity un UV bins."""
         try:
             import matplotlib.pyplot as plt
         except ImportError:
@@ -466,10 +470,79 @@ class PowerSpectrum(Sensitivity):
                 (len(self.observation.kparallel), x.shape[1])
             )
         )
-        C = np.array([np.fft.fftshift(sense2d[key]) for key in keys]).T
+        z = np.array([np.fft.fftshift(sense2d[key]) for key in keys]).T
 
-        plt.pcolormesh(x, y, np.log10(C))
+        plt.pcolormesh(x, y, np.log10(z))
         cbar = plt.colorbar()
         cbar.set_label(r"$\log_{10} \delta \Delta^2$ [mK^2]", fontsize=14)
         plt.xlabel(r"$k_\perp$ [h/Mpc]", fontsize=14)
         plt.ylabel(r"$k_{||}$ [h/Mpc]", fontsize=14)
+
+    def write(
+        self,
+        filename: str | Path,
+        thermal: bool = True,
+        sample: bool = True,
+        prefix: str = None,
+    ) -> str | Path:
+        """Save sensitivity results to HDF5 file."""
+        out = self._get_all_sensitivity_combos(thermal, sample)
+        prefix = prefix + "_" if prefix else ""
+        if filename is None:
+            filename = (
+                f"{prefix}{self.foreground_model}_{self.observation.frequency:.3f}.h5"
+            )
+
+        logger.info(f"Writing sensitivies to '{filename}'")
+        with h5py.File(filename, "w") as fl:
+
+            # TODO: We should be careful to try and write everything into this file
+            # i.e. all the parameters etc.
+
+            for k, v in out.items():
+                fl[k] = v
+                fl[k.replace("noise", "snr")] = self.delta_squared / v
+
+            fl["k"] = self.k1d.value
+            fl["delta_squared"] = self.delta_squared
+
+            fl.attrs["k_min"] = self.k_min
+            fl.attrs["k_max"] = self.k_max
+            fl.attrs["total_snr"] = self.calculate_significance()
+            fl.attrs["foreground_model"] = self.foreground_model
+            fl.attrs["horizon_buffer"] = self.horizon_buffer
+
+    def plot_sense_1d(self, sample: bool = True, thermal: bool = True):
+        """Create a plot of the sensitivity in 1D k-bins."""
+        try:
+            import matplotlib.pyplot as plt
+        except ImportError:
+            raise ImportError("matplotlib is required to make plots...")
+
+        out = self._get_all_sensitivity_combos(thermal, sample)
+        for key, value in out.items():
+            plt.plot(self.k1d, value, label=key)
+            plt.xscale("log")
+            plt.yscale("log")
+            plt.xlabel("k [1/Mpc]")
+            plt.ylabel(r"$\Delta^2_N \  [{\rm mK}^2/{\rm Mpc}^3$")
+            plt.legend()
+            plt.title(f"z={conv.f2z(self.observation.frequency):.2f}")
+
+        return plt.gcf()
+
+    def _get_all_sensitivity_combos(self, thermal, sample):
+        result = {}
+        if thermal:
+            result["thermal_noise"] = self.calculate_sensitivity_1d(sample=False)
+        if sample:
+            result["sample_noise"] = self.calculate_sensitivity_1d(
+                thermal=False, sample=True
+            )
+
+        if thermal and sample:
+            result["sample+thermal_noise"] = self.calculate_sensitivity_1d(
+                thermal=True, sample=True
+            )
+
+        return result

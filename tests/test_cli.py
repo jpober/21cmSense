@@ -102,17 +102,28 @@ def test_calc_sense_with_p21(runner, sensitivity_config_defined_p21):
 
 def test_both(runner, tmpdirec, observation_config, sensitivity_config):
     output = runner.invoke(
-        cli.main, ["grid-baselines", observation_config, "--direc", tmpdirec]
+        cli.main,
+        [
+            "grid-baselines",
+            observation_config,
+            "--direc",
+            tmpdirec,
+            "--outfile",
+            "arrayfile.pkl",
+        ],
     )
 
     if output.exception:
         traceback.print_exception(*output.exc_info)
 
-    # Get output filename from stdout
-    outfile = output.output.split("\n")[-2].split(" ")[-1]
-
     output = runner.invoke(
-        cli.main, ["calc-sense", sensitivity_config, "--array-file", outfile]
+        cli.main,
+        [
+            "calc-sense",
+            sensitivity_config,
+            "--array-file",
+            path.join(tmpdirec, "arrayfile.pkl"),
+        ],
     )
     if output.exception:
         traceback.print_exception(*output.exc_info)

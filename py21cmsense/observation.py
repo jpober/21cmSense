@@ -1,7 +1,4 @@
-"""
-A module defining the `Observation` class, which is a self-contained way to specify
-an interferometric observation.
-"""
+"""A module defining interferometric observation objects."""
 from __future__ import division, print_function
 
 import attr
@@ -121,6 +118,7 @@ class Observation:
 
     @classmethod
     def from_yaml(cls, yaml_file):
+        """Construct an :class:`Observation` from a YAML file."""
         if isinstance(yaml_file, str):
             with open(yaml_file) as fl:
                 data = yaml.load(fl, Loader=yaml.FullLoader)
@@ -149,8 +147,10 @@ class Observation:
         return self.observatory.observation_duration
 
     @cached_property
-    def baseline_groups(self):
-        """A dictionary of redundant baseline groups. Keys are tuples of floats (X,Y,LENGTH), and
+    def baseline_groups(self) -> dict:
+        """A dictionary of redundant baseline groups.
+
+        Keys are tuples of floats (X,Y,LENGTH), and
         values are lists of two-tuples of baseline antenna indices in that particular
         baseline group.
         """
@@ -160,24 +160,24 @@ class Observation:
 
     @cached_property
     def baseline_group_coords(self):
-        """Co-ordinates of baseline groups in metres"""
+        """Co-ordinates of baseline groups in metres."""
         return self.observatory.baseline_coords_from_groups(self.baseline_groups)
 
     @cached_property
     def baseline_group_counts(self):
-        """The number of baselines in each group"""
+        """The number of baselines in each group."""
         return self.observatory.baseline_weights_from_groups(self.baseline_groups)
 
     @property
     def frequency(self):
-        """Frequency of the observation"""
+        """Frequency of the observation."""
         return self.observatory.frequency
 
     @cached_property
     def uv_coverage(self):
-        """A 2D array specifying the effective number of baselines in a grid of UV, after
-        earth rotation synthesis for a particular LST bin.
+        """A 2D array specifying the effective number of baselines in a grid of UV.
 
+        Defined after earth rotation synthesis for a particular LST bin.
         The u-values on each side of the grid are given by :func:`ugrid`.
         """
         if self._uv_cov is not None:
@@ -214,24 +214,25 @@ class Observation:
 
     @cached_property
     def Tsky(self):
-        """Temperature of the sky at the default frequency"""
+        """Temperature of the sky at the default frequency."""
         return self.tsky_amplitude * (self.frequency / self.tsky_ref_freq) ** (
             -self.spectral_index
         )
 
     @cached_property
     def Tsys(self):
-        """System temperature (i.e. Tsky + Trcv)"""
+        """System temperature (i.e. Tsky + Trcv)."""
         return self.Tsky + self.observatory.Trcv
 
     @cached_property
     def redshift(self):
-        """Central redshift of the observation"""
+        """Central redshift of the observation."""
         return conv.f2z(self.frequency)
 
     @cached_property
     def kparallel(self):
-        """1D array of kparallel values, defined by the bandwidth and number of channels.
+        """1D array of kpar values, defined by the bandwidth and number of channels.
+
         Order of the values is the same as `fftfreq` (i.e. zero-first)
         """
         return conv.dk_deta(self.redshift) * np.fft.fftfreq(
@@ -248,9 +249,9 @@ class Observation:
 
     @cached_property
     def Trms(self):
-        """The effective radiometric noise temperature per UV bin (i.e. divided by
-        bandwidth and integration time).
+        """Effective radiometric noise temperature per UV bin.
 
+        (i.e. divided by bandwidth and integration time).
         The u-values on each side of the grid are given by :func:`ugrid`.
         """
         return self.Tsys / np.sqrt(2 * self.bandwidth * self.total_integration_time).to(
@@ -259,21 +260,26 @@ class Observation:
 
     @cached_property
     def ugrid(self):
-        """Centres of the linear grid which defines a side of the UV grid corresponding
-        to :func:`uv_coverage` and its derivative quantities."""
+        """Centres of the linear grid which defines a side of the UV grid.
+
+        The UV grid is defined by :func:`uv_coverage`.
+        """
         return self.observatory.ugrid(self.bl_max)
 
     @cached_property
     def ugrid_edges(self):
-        """Edges of the linear grid which defines a side of the UV grid corresponding
-        to :func:`uv_coverage` and its derivative quantities."""
+        """Edges of the linear grid which defines a side of the UV grid.
+
+        The UV grid is defined by :func:`uv_coverage`.
+        """
         return self.observatory.ugrid_edges(self.bl_max)
 
     def clone(self, **kwargs):
-        """Create a new instance of this instance, but with arbitrary changes to parameters."""
+        """Create a clone of this instance, with arbitrary changes to parameters."""
         return attr.evolve(self, **kwargs)
 
     def __getstate__(self):
+        """Get the pickelable state of the instance."""
         # This is defined so that when writing out a pickled version of the
         # class, the method which actually "does stuff" (i.e. uv_coverage) is run
         # and its output is saved in the pickle.

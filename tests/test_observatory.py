@@ -1,7 +1,9 @@
 import pytest
 
 import numpy as np
+import pyuvdata
 from astropy import units
+from astropy.coordinates import EarthLocation
 
 from py21cmsense import Observatory
 from py21cmsense.beam import GaussianBeam
@@ -103,3 +105,14 @@ def test_min_max_antpos(bm):
     )
 
     assert len(a.antpos) == 2
+
+
+def test_from_uvdata(bm):
+    uv = pyuvdata.UVData()
+    uv.antenna_positions = np.array([[0, 0, 0], [0, 1, 0], [1, 0, 0], [40, 0, 40]])
+    uv.telescope_location = [
+        x.value for x in EarthLocation.from_geodetic(0, 0).to_geocentric()
+    ]
+
+    a = Observatory.from_uvdata(uvdata=uv, beam=bm)
+    assert np.all(a.antpos.value == uv.antenna_positions)

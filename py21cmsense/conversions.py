@@ -49,7 +49,7 @@ def z2f(z):
 
 def dL_dth(z, cosmo=Planck15):
     """
-    Return the factor to convert radians to transverse distance at redshift z
+    Return the factor to convert radians to transverse distance at redshift z.
 
     Parameters
     ----------
@@ -70,8 +70,7 @@ def dL_dth(z, cosmo=Planck15):
 
 def dL_df(z, cosmo=Planck15):
     """
-    Return the factor to convert a bandwidth to a line-of-sight distance in Mpc/h
-    at redshift z
+    Get the factor to convert bandwidth to line-of-sight distance in Mpc/h.
 
     Parameters
     ----------
@@ -85,8 +84,7 @@ def dL_df(z, cosmo=Planck15):
 
 def dk_du(z, cosmo=Planck15):
     """
-    Return the factor to convert a baseline length in wavelengths (at the frequency
-    corresponding to redshift z) into a transverse k mode in h/Mpc at redshift z
+    Get factor converting bl length in wavelengths to h/Mpc.
 
     Parameters
     ----------
@@ -103,8 +101,7 @@ def dk_du(z, cosmo=Planck15):
 
 def dk_deta(z, cosmo=Planck15):
     """
-    Return factor to convert eta (FT of freq.; in 1/GHz) to line of sight k
-    mode in h/Mpc at redshift z
+    Get gactor converting 1/GHz to h/Mpc.
 
     Parameters
     ----------
