@@ -65,3 +65,8 @@ def test_plots(observation):
     ps = PowerSpectrum(observation=observation)
     sense2d = ps.calculate_sensitivity_2d()
     ps.plot_sense_2d(sense2d)
+
+
+def test_sensitivity_optimistic(observation):
+    ps = PowerSpectrum(observation=observation, foreground_model="optimistic")
+    assert ps.horizon_limit(10.0) > ps.horizon_limit(5.0)
