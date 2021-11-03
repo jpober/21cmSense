@@ -231,6 +231,7 @@ class Observation:
 
     @cached_property
     def eta(self):
+        """The fourier dual of the frequencies of the observation."""
         return np.fft.fftfreq(self.n_channels, self.bandwidth / self.n_channels)
 
     @cached_property
