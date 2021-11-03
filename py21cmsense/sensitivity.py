@@ -475,7 +475,7 @@ class PowerSpectrum(Sensitivity):
         """Create a colormap plot of the sensitivity un UV bins."""
         try:
             import matplotlib.pyplot as plt
-        except ImportError:
+        except ImportError:  # pragma: no cover
             raise ImportError("matplotlib is required to make plots...")
 
         keys = sorted(sense2d.keys())
@@ -547,7 +547,7 @@ class PowerSpectrum(Sensitivity):
         """Create a plot of the sensitivity in 1D k-bins."""
         try:
             import matplotlib.pyplot as plt
-        except ImportError:
+        except ImportError:  # pragma: no cover
             raise ImportError("matplotlib is required to make plots...")
 
         out = self._get_all_sensitivity_combos(thermal, sample)
