@@ -100,11 +100,9 @@ class Sensitivity:
 def _kconverter(val):
     if not hasattr(val, "unit"):
         # Assume it has the 1/Mpc units (default from 21cmFAST)
-        return val * un.littleh / un.Mpc / Planck15.h
-    try:
-        return val.to("littleh/Mpc")
-    except un.UnitConversionError:
-        return ((val / Planck15.h) * un.littleh).to("littleh/Mpc")
+        return (val / un.Mpc).to("littleh/Mpc", un.with_H0(config.COSMO.H0))
+    else:
+        return val.to("littleh/Mpc", un.with_H0(config.COSMO.H0))
 
 
 @attr.s(kw_only=True)
@@ -210,8 +208,24 @@ class PowerSpectrum(Sensitivity):
     def k1d(self):
         """1D array of wavenumbers for which sensitivities will be generated."""
         delta = conv.dk_deta(self.observation.redshift) / self.observation.bandwidth
+        if self.k_max.value < delta.value * self.observation.n_channels:
+            logger.warning(
+                "The maximum k value is being restricted by the theoretical signal "
+                "model. Losing ~"
+                f"{int((delta.value * self.observation.n_channels - self.k_max.value)/delta.value)}"
+                " bins."
+            )
+        if self.k_min > delta:
+            logger.warning(
+                "The minimum k value is being restricted by the theoretical signal "
+                f"model. Losing ~{int((self.k_min - delta)/delta)} bins between {delta}"
+                f" and {self.k_min}."
+            )
+            mn = self.k_min
+        else:
+            mn = delta
         assert delta.unit == self.k_max.unit
-        return np.arange(delta.value, self.k_max.value, delta.value) * delta.unit
+        return np.arange(mn.value, self.k_max.value, delta.value) * delta.unit
 
     @cached_property
     def X2Y(self):
@@ -279,6 +293,9 @@ class PowerSpectrum(Sensitivity):
             u, v = self.observation.ugrid[iu], self.observation.ugrid[iv]
             trms = self.observation.Trms[iv, iu]
 
+            if np.isinf(trms):
+                continue
+
             umag = np.sqrt(u ** 2 + v ** 2)
             k_perp = umag * conv.dk_du(self.observation.redshift)
 
@@ -294,25 +311,29 @@ class PowerSpectrum(Sensitivity):
                 sense["both"][k_perp] = (
                     np.zeros(len(self.observation.kparallel)) / un.mK ** 4
                 )
-            if not np.isinf(trms):
-                # Exclude parallel modes dominated by foregrounds
-                kpars = self.observation.kparallel[self.observation.kparallel >= hor]
-                start = np.where(self.observation.kparallel >= hor)[0][0]
-                n_inds = (self.observation.kparallel.size - 1) // 2 + 1
-                inds = np.arange(start=start, stop=n_inds)
 
-                thermal = self.thermal_noise(kpars, k_perp, trms)
-                sample = self.sample_noise(kpars, k_perp)
+            # Exclude parallel modes dominated by foregrounds
+            kpars = self.observation.kparallel[self.observation.kparallel >= hor]
 
-                t = 1.0 / thermal ** 2
-                s = 1.0 / sample ** 2
-                ts = 1.0 / (thermal + sample) ** 2
-                sense["thermal"][k_perp][inds] += t
-                sense["thermal"][k_perp][-inds] += t
-                sense["sample"][k_perp][inds] += s
-                sense["sample"][k_perp][-inds] += s
-                sense["both"][k_perp][inds] += ts
-                sense["both"][k_perp][-inds] += ts
+            if not len(kpars):
+                continue
+
+            start = np.where(self.observation.kparallel >= hor)[0][0]
+            n_inds = (self.observation.kparallel.size - 1) // 2 + 1
+            inds = np.arange(start=start, stop=n_inds)
+
+            thermal = self.thermal_noise(kpars, k_perp, trms)
+            sample = self.sample_noise(kpars, k_perp)
+
+            t = 1.0 / thermal ** 2
+            s = 1.0 / sample ** 2
+            ts = 1.0 / (thermal + sample) ** 2
+            sense["thermal"][k_perp][inds] += t
+            sense["thermal"][k_perp][-inds] += t
+            sense["sample"][k_perp][inds] += s
+            sense["sample"][k_perp][-inds] += s
+            sense["both"][k_perp][inds] += ts
+            sense["both"][k_perp][-inds] += ts
 
         return sense
 
@@ -398,10 +419,9 @@ class PowerSpectrum(Sensitivity):
             )
 
         # invert errors and take square root again for final answer
-        sense1d = np.zeros_like(sense1d_inv) * un.mK ** 6
-        for ind, kbin in enumerate(sense1d_inv):
-            sense1d[ind] = kbin ** -0.5 if kbin else np.inf
-
+        sense1d = np.ones(sense1d_inv.shape) * un.mK ** 2 * np.inf
+        mask = sense1d_inv > 0
+        sense1d[mask] = 1 / np.sqrt(sense1d_inv[mask])
         return sense1d
 
     @lru_cache()
@@ -484,14 +504,22 @@ class PowerSpectrum(Sensitivity):
         thermal: bool = True,
         sample: bool = True,
         prefix: str = None,
-    ) -> str | Path:
-        """Save sensitivity results to HDF5 file."""
+    ) -> Path:
+        """Save sensitivity results to HDF5 file.
+
+        Returns
+        -------
+        filename
+            The path to the file that is written.
+        """
         out = self._get_all_sensitivity_combos(thermal, sample)
         prefix = prefix + "_" if prefix else ""
         if filename is None:
-            filename = (
+            filename = Path(
                 f"{prefix}{self.foreground_model}_{self.observation.frequency:.3f}.h5"
             )
+        else:
+            filename = Path(filename)
 
         logger.info(f"Writing sensitivies to '{filename}'")
         with h5py.File(filename, "w") as fl:
@@ -503,7 +531,7 @@ class PowerSpectrum(Sensitivity):
                 fl[k] = v
                 fl[k.replace("noise", "snr")] = self.delta_squared / v
 
-            fl["k"] = self.k1d.value
+            fl["k"] = self.k1d.to("1/Mpc", un.with_H0(config.COSMO.H0)).value
             fl["delta_squared"] = self.delta_squared
 
             fl.attrs["k_min"] = self.k_min
@@ -511,6 +539,9 @@ class PowerSpectrum(Sensitivity):
             fl.attrs["total_snr"] = self.calculate_significance()
             fl.attrs["foreground_model"] = self.foreground_model
             fl.attrs["horizon_buffer"] = self.horizon_buffer
+            fl.attrs["k_unit"] = "1/Mpc"
+
+        return filename
 
     def plot_sense_1d(self, sample: bool = True, thermal: bool = True):
         """Create a plot of the sensitivity in 1D k-bins."""

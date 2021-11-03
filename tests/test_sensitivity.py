@@ -70,3 +70,32 @@ def test_plots(observation):
 def test_sensitivity_optimistic(observation):
     ps = PowerSpectrum(observation=observation, foreground_model="optimistic")
     assert ps.horizon_limit(10.0) > ps.horizon_limit(5.0)
+
+
+def test_limited_k_range(observation, caplog):
+    ps = PowerSpectrum(
+        observation=observation,
+        k_21=np.array([1, 2, 3]) * units.littleh / units.Mpc,
+        delta_21=np.array([1, 2, 3]) * units.mK ** 2,
+    )
+
+    ps.k1d
+
+    assert any(
+        "The minimum k value is being restricted" in rec.msg for rec in caplog.records
+    )
+
+
+def test_infs_in_trms(observation):
+    # default dumb layout should have lots of infs..
+    assert np.any(np.isinf(observation.Trms))
+    ps = PowerSpectrum(observation=observation)
+    ps.calculate_sensitivity_2d()
+    # merely get through the calculations...
+
+
+def test_write_to_custom_filename(observation, tmp_path):
+    out = tmp_path / "outfile.h5"
+    ps = PowerSpectrum(observation=observation)
+    out2 = ps.write(filename=out)
+    assert out2 == out

@@ -4,6 +4,7 @@ import numpy as np
 import pyuvdata
 from astropy import units
 from astropy.coordinates import EarthLocation
+from pathlib import Path
 
 from py21cmsense import Observatory
 from py21cmsense.beam import GaussianBeam
@@ -116,3 +117,49 @@ def test_from_uvdata(bm):
 
     a = Observatory.from_uvdata(uvdata=uv, beam=bm)
     assert np.all(a.antpos.value == uv.antenna_positions)
+
+
+def test_different_antpos_loaders(tmp_path: Path):
+    antpos = np.array([[0, 0, 0], [14, 0, 0], [28, 0, 0], [70, 0, 0]])
+
+    np.save(tmp_path / "antpos.npy", antpos)
+    np.savetxt(tmp_path / "antpos.txt", antpos)
+
+    yamlnpy = f"""
+    antpos: {tmp_path / 'antpos.npy'}
+    beam:
+        class: GaussianBeam
+        frequency: 150    # By default, in MHz
+        dish_size: 14.0   # By default, in m
+    """
+    with open(tmp_path / "npy.yml", "w") as fl:
+        fl.write(yamlnpy)
+
+    obsnpy = Observatory.from_yaml(tmp_path / "npy.yml")
+
+    yamltxt = f"""
+    antpos: {tmp_path / 'antpos.txt'}
+    beam:
+        class: GaussianBeam
+        frequency: 150    # By default, in MHz
+        dish_size: 14.0   # By default, in m
+    """
+    with open(tmp_path / "txt.yml", "w") as fl:
+        fl.write(yamltxt)
+
+    obstxt = Observatory.from_yaml(tmp_path / "txt.yml")
+
+    assert obsnpy == obstxt
+
+    with pytest.raises(TypeError, match="None of the loaders for antpos worked."):
+        yamlnpy = """
+        antpos: heythere
+        beam:
+            class: GaussianBeam
+            frequency: 150    # By default, in MHz
+            dish_size: 14.0   # By default, in m
+        """
+        with open(tmp_path / "npy.yml", "w") as fl:
+            fl.write(yamlnpy)
+
+        obsnpy = Observatory.from_yaml(tmp_path / "npy.yml")

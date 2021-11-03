@@ -16,6 +16,7 @@ from astropy import units as units
 from attr import validators as vld
 from cached_property import cached_property
 from collections import defaultdict
+from pathlib import Path
 
 from . import _utils as ut
 from . import antpos as antpos_module
@@ -131,7 +132,7 @@ class Observatory:
     @classmethod
     def from_yaml(cls, yaml_file):
         """Instantiate an Observatory from a compatible YAML config file."""
-        if isinstance(yaml_file, str):
+        if isinstance(yaml_file, (str, Path)):
             with open(yaml_file) as fl:
                 data = yaml.load(fl, Loader=yaml.FullLoader)
         elif isinstance(yaml_file, collections.abc.Mapping):

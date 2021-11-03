@@ -3,7 +3,6 @@ from __future__ import division, print_function
 
 import click
 import logging
-import numpy as np
 import os
 import pickle
 import tempfile
@@ -138,6 +137,10 @@ def calc_sense(
             yaml.dump(cfg, fl)
 
     sensitivity = sense.PowerSpectrum.from_yaml(configfile)
+    logger.info(
+        f"Used {len(sensitivity.k1d)} bins between "
+        f"{sensitivity.k1d.min()} and {sensitivity.k1d.max()}"
+    )
     sensitivity.write(filename=fname, thermal=thermal, sample=samplevar, prefix=prefix)
 
     if write_significance:
