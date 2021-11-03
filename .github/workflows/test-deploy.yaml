@@ -1,0 +1,38 @@
+name: Test Deploy
+on: push
+
+jobs:
+  test-deploy:
+    name: Test Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      # https://github.com/ansible/pylibssh/blob/1e7b17f/.github/workflows/build-test-n-publish.yml#L146-L151
+      - name: Get history and tags for SCM versioning to work
+        run: |
+          git fetch --prune --unshallow
+          git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+          git describe --tags
+          git describe --tags $(git rev-list --tags --max-count=1)
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.x
+      - name: Install build
+        run: |
+          python -m pip install build
+          python -m pip install setuptools_scm
+          python setup.py --version
+      - name: Create setuptools_scm env variable
+        shell: bash
+        run: |
+          wget https://gist.github.com/plaplant/0902f09e59166bac742bbd554f3cd2f9/raw/make_dev_version.sh -O ../make_dev_version.sh
+          version=$(bash ../make_dev_version.sh)
+          echo "SETUPTOOLS_SCM_PRETEND_VERSION=$version" >> $GITHUB_ENV
+      - name: Build a binary wheel and a source tarball
+        run: python -m build
+      - name: Publish distribution 📦 to Test PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          password: ${{ secrets.test_pypi_password }}
+          repository_url: https://test.pypi.org/legacy/

@@ -1,9 +1,10 @@
-import pickle
-
 import pytest
 
+import copy
 import numpy as np
+import pickle
 from astropy import units
+
 from py21cmsense import GaussianBeam, Observation, Observatory
 
 
@@ -57,3 +58,8 @@ def test_uvcov(observatory):
     incoherent_obs = Observation(observatory=observatory, coherent=False)
 
     assert np.all(coherent_obs.uv_coverage >= incoherent_obs.uv_coverage)
+
+
+def test_equality(observatory):
+    new_observatory = copy.deepcopy(observatory)
+    assert new_observatory == observatory

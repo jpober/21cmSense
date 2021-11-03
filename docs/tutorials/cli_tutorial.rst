@@ -20,7 +20,7 @@ In general you do not need a file of antenna positions -- you could alternativel
 a function to generate them (eg. see the default example
 `observatory config <https://github.com/steven-murray/21cmSense/blob/master/example_configs/observatory_hera.yml>`_).
 Typically, however, you will have a given list of positions. These can be in the format
-of a `.npy` array, a pickle file, or a simple ASCII file. In any case, the array must
+of a ``.npy`` array, a pickle file, or a simple ASCII file. In any case, the array must
 be of shape ``(Nant, 3)``, where the three columns are East, North and Elevation, all
 in units of metres (actually, if its a pickle file, the array could be an
 `astropy Quantity <https://docs.astropy.org/en/stable/units/quantity.html#creating-quantity-instances>`_,
@@ -191,7 +191,7 @@ separate it in order to run the gridding separately.
 The ``horizon_buffer`` specifies a region of kparallel which gets thrown out due to assumed
 high level of foregrounds, if ``foreground_model`` is ``moderate`` (which is the default).
 This is *in addition* to the horizon line. For small baselines, this effectively sets
-a "bar" below which all $k_{||}$ are thrown out. Its units are `h/Mpc`.
+a "bar" below which all $k_{||}$ are thrown out. Its units are ``h/Mpc``.
 
 Finally, ``p21`` defines a fiducial EoR power spectrum model used to determine the cosmic
 variance (which is added in quadrature to the thermal variance). Note that cosmic variance

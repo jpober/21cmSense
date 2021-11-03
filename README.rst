@@ -19,12 +19,24 @@ to the Epoch of Reionization and/or Cosmic Dawn power spectrum.
 
 Installation
 ============
+For Users
+---------
 Clone/download the package and run ``pip install [-e] .`` in the top-level.
 
 If you are a ``conda`` user (which we recommend), you may want to install the following
 using ``conda`` rather than them being automatically installed with pip::
 
     $ conda install numpy scipy pyyaml astropy
+
+For Development
+---------------
+Clone/download the package and run ``pip install [-e] .[dev]`` in the top-level.
+
+Run ``pre-commit install; pre-commit install --hook-type=commit-msg`` to install the
+pre-commit hook checks.
+
+We recommend using the ``commitizen`` tool to write commit messages -- we use the commit
+messages to do our versioning!
 
 Usage
 =====

@@ -1,6 +1,4 @@
-"""
-Utility functions for 21cmSense.
-"""
+"""Utility functions for 21cmSense."""
 import numpy as np
 import tqdm
 from astropy import units as un
@@ -12,13 +10,15 @@ from . import config
 
 
 class UnitError(ValueError):
+    """An error pertaining to having incorrect units."""
+
     pass
 
 
 def apply_or_convert_unit(unit, allow_unitless=False, array=False):
-    """
-    Return a function that converts numbers to quantities (or converts quantities to
-    specified units).
+    """Return a function that converts numbers to quantities.
+
+    The returned function also converts input quantities to specified units.
 
     Parameters
     ----------
@@ -51,32 +51,32 @@ def apply_or_convert_unit(unit, allow_unitless=False, array=False):
     return converter
 
 
-def between(min, max):
-    """Return an attrs validation function that validates that a number is within certain bounds"""
+def between(xmin, xmax):
+    """Return an attrs validation function that checks a number is within bounds."""
 
     def validator(instance, att, val):
-        assert min <= val <= max
+        assert xmin <= val <= xmax
 
     return validator
 
 
 def positive(instance, att, x):
-    """attrs validator that checks a value is positive"""
+    """An attrs validator that checks a value is positive."""
     assert x > 0, "must be positive"
 
 
 def nonnegative(instance, att, x):
-    """attrs validator that checks a value is non-negative"""
+    """An attrs validator that checks a value is non-negative."""
     assert x >= 0, "must be non-negative"
 
 
 def find_nearest(array, value):
-    """Find closest value in `array` to `value`"""
+    """Find closest value in `array` to `value`."""
     return np.abs(array.reshape(-1, 1) - value).argmin(0)
 
 
 def trunc(x, ndecimals=0):
-    """Truncate a floating point number to a given number of decimals"""
+    """Truncate a floating point number to a given number of decimals."""
     decade = 10 ** ndecimals
     return np.trunc(x * decade) / decade
 
@@ -108,7 +108,6 @@ def phase(jd, ra, dec, telescope_location, uvws0):
         Array of the same shape as `uvws0`, with entries modified to the new phase
         center.
     """
-
     frame_phase_center = SkyCoord(ra=ra, dec=dec, unit="radian", frame="icrs")
 
     obs_time = Time(np.atleast_1d(jd), format="jd")
@@ -156,13 +155,11 @@ def phase(jd, ra, dec, telescope_location, uvws0):
 
 
 def phase_past_zenith(time_past_zenith, uvws0, latitude):
-    """
-    Compute UVWs phased to a point which has rotated from zenith by a certain amount
-    of time.
+    """Compute UVWs phased to a point rotated from zenith by a certain amount of time.
 
-    This function specifies a longitude and time of observation without loss of generality
-    -- all that matters is the time since a hypothetical point was at zenith, and the
-    latitude of the array.
+    This function specifies a longitude and time of observation without loss of
+    generality -- all that matters is the time since a hypothetical point was at zenith,
+    and the latitude of the array.
 
     Parameters
     ----------
@@ -176,7 +173,8 @@ def phase_past_zenith(time_past_zenith, uvws0, latitude):
 
     Returns
     -------
-
+    uvws
+        The array of UVWs correctly phased.
     """
     # Generate ra/dec of zenith at time in the phase_frame coordinate system
     # to use for phasing
