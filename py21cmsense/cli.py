@@ -18,7 +18,7 @@ try:
     import matplotlib.pyplot as plt
 
     HAVE_MPL = True
-except ImportError:
+except ImportError:  # pragma: no cover
     HAVE_MPL = False
 
 main = click.Group()
