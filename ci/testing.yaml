@@ -3,7 +3,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - astropy
+  - astropy>=5
   - cached_property
   - click
   - future
