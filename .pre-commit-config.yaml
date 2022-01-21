@@ -10,7 +10,6 @@ repos:
   - id: check-json
   - id: check-merge-conflict
   - id: check-xml
-  - id: check-yaml
   - id: debug-statements
   - id: end-of-file-fixer
   - id: requirements-txt-fixer

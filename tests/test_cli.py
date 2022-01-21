@@ -3,9 +3,9 @@ import pytest
 import glob
 import traceback
 from astropy.io.misc import yaml
-from yaml import dump
 from click.testing import CliRunner
 from os import path
+from yaml import dump
 
 from py21cmsense import cli
 
@@ -54,14 +54,17 @@ def sensitivity_config_defined_p21(tmpdirec, observation_config, sensitivity_con
     with open(sensitivity_config, "r") as fl:
         sensitivity = yaml.load(fl)
 
-    pfile = path.join(example_configs, "../py21cmsense/data/ps_no_halos_nf0.521457_z9.50_useTs0_zetaX-1.0e+00_200_400Mpc_v2")
-    
+    pfile = path.join(
+        example_configs,
+        "../py21cmsense/data/ps_no_halos_nf0.521457_z9.50_useTs0_zetaX-1.0e+00_200_400Mpc_v2",
+    )
+
     sensitivity["observation"] = observation_config
-    
+
     with open(path.join(tmpdirec, "sensitivity_with_p21.yml"), "w") as fl:
         dump(sensitivity, fl)
 
-        fl.write(f'p21: !txt {pfile}\n')
+        fl.write(f"p21: !txt {pfile}\n")
 
     return path.join(tmpdirec, "sensitivity_with_p21.yml")
 
@@ -117,8 +120,8 @@ def test_both(runner, tmpdirec, observation_config, sensitivity_config):
             sensitivity_config,
             "--array-file",
             path.join(tmpdirec, "arrayfile.pkl"),
-            '--plot-title',
-            'MYTITLE'
+            "--plot-title",
+            "MYTITLE",
         ],
     )
     if output.exception:

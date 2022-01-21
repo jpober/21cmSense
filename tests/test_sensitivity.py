@@ -1,21 +1,28 @@
-from py21cmsense.sensitivity import Sensitivity
 import pytest
 
 import numpy as np
 from astropy import units
 
-from py21cmsense import GaussianBeam, Observation, Observatory, PowerSpectrum, _kconverter
+from py21cmsense import (
+    GaussianBeam,
+    Observation,
+    Observatory,
+    PowerSpectrum,
+    _kconverter,
+)
+from py21cmsense.sensitivity import Sensitivity
 
 
 @pytest.fixture(scope="module")
 def bm():
-    return GaussianBeam(150.0 * units.MHz, dish_size=14*units.m)
+    return GaussianBeam(150.0 * units.MHz, dish_size=14 * units.m)
 
 
 @pytest.fixture(scope="module")
 def observatory(bm):
     return Observatory(
-        antpos=np.array([[0, 0, 0], [14, 0, 0], [28, 0, 0], [70, 0, 0]])*units.m, beam=bm
+        antpos=np.array([[0, 0, 0], [14, 0, 0], [28, 0, 0], [70, 0, 0]]) * units.m,
+        beam=bm,
     )
 
 
@@ -105,7 +112,11 @@ def test_write_to_custom_filename(observation, tmp_path):
 def test_kconverter():
     with pytest.raises(ValueError, match="no units supplied!"):
         _kconverter(1)
-        
+
+
 def test_load_yaml_bad():
-    with pytest.raises(ValueError, match="yaml_file must be a string filepath or a raw dict from such a file"):
+    with pytest.raises(
+        ValueError,
+        match="yaml_file must be a string filepath or a raw dict from such a file",
+    ):
         Sensitivity.from_yaml(1)

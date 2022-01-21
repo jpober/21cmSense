@@ -3,11 +3,10 @@ Common 21 cm conversions.
 
 Provides conversions between observing co-ordinates and cosmological co-ordinates.
 """
-# from __future__ import annotations
 import numpy as np
 from astropy import constants as cnst
 from astropy import units as u
-from astropy.cosmology import Planck15, FLRW
+from astropy.cosmology import FLRW, Planck15
 from astropy.cosmology.units import littleh
 from typing import Union
 
@@ -15,6 +14,7 @@ from . import types as tp
 
 # The frequency of the 21cm line emission.
 f21 = 1.42040575177 * u.GHz
+
 
 @u.quantity_input
 def f2z(fq: tp.Frequency) -> float:
@@ -29,8 +29,9 @@ def f2z(fq: tp.Frequency) -> float:
     Returns
     -------
     dimensionless astropy.Quantity : The redshift
-    """    
+    """
     return float(f21 / fq - 1)
+
 
 @u.quantity_input
 def z2f(z: Union[float, np.array]) -> u.Quantity[u.GHz]:
@@ -49,7 +50,9 @@ def z2f(z: Union[float, np.array]) -> u.Quantity[u.GHz]:
     return f21 / (1 + z)
 
 
-def dL_dth(z: Union[float, np.array], cosmo: FLRW=Planck15) -> u.Quantity[u.Mpc / u.rad / littleh]:
+def dL_dth(
+    z: Union[float, np.array], cosmo: FLRW = Planck15
+) -> u.Quantity[u.Mpc / u.rad / littleh]:
     """
     Return the factor to convert radians to transverse distance at redshift z.
 
@@ -70,7 +73,9 @@ def dL_dth(z: Union[float, np.array], cosmo: FLRW=Planck15) -> u.Quantity[u.Mpc 
     return cosmo.h * cosmo.comoving_transverse_distance(z) / u.rad / littleh
 
 
-def dL_df(z: Union[float, np.array], cosmo: FLRW=Planck15) -> u.Quantity[u.Mpc / u.MHz / littleh]:
+def dL_df(
+    z: Union[float, np.array], cosmo: FLRW = Planck15
+) -> u.Quantity[u.Mpc / u.MHz / littleh]:
     """
     Get the factor to convert bandwidth to line-of-sight distance in Mpc/h.
 
@@ -84,7 +89,9 @@ def dL_df(z: Union[float, np.array], cosmo: FLRW=Planck15) -> u.Quantity[u.Mpc /
     )
 
 
-def dk_du(z: Union[float, np.array], cosmo: FLRW=Planck15) -> u.Quantity[littleh / u.Mpc]:
+def dk_du(
+    z: Union[float, np.array], cosmo: FLRW = Planck15
+) -> u.Quantity[littleh / u.Mpc]:
     """
     Get factor converting bl length in wavelengths to h/Mpc.
 
@@ -101,7 +108,9 @@ def dk_du(z: Union[float, np.array], cosmo: FLRW=Planck15) -> u.Quantity[littleh
     return 2 * np.pi / dL_dth(z, cosmo) / u.rad
 
 
-def dk_deta(z: Union[float, np.array], cosmo: FLRW=Planck15) -> u.Quantity[u.MHz * littleh / u.Mpc]:
+def dk_deta(
+    z: Union[float, np.array], cosmo: FLRW = Planck15
+) -> u.Quantity[u.MHz * littleh / u.Mpc]:
     """
     Get gactor converting inverse frequency to inverse distance.
 
@@ -113,7 +122,9 @@ def dk_deta(z: Union[float, np.array], cosmo: FLRW=Planck15) -> u.Quantity[u.MHz
     return 2 * np.pi / dL_df(z, cosmo)
 
 
-def X2Y(z: Union[float, np.array], cosmo: FLRW=Planck15) -> u.Quantity[u.Mpc**3 / littleh**3 / u.steradian / u.GHz]:
+def X2Y(
+    z: Union[float, np.array], cosmo: FLRW = Planck15
+) -> u.Quantity[u.Mpc ** 3 / littleh ** 3 / u.steradian / u.GHz]:
     """
     Obtain the conversion factor between observing co-ordinates and cosmological volume.
 

@@ -1,18 +1,23 @@
-
+"""Module defining new YAML tags for py21cmsense."""
+import inspect
+import numpy as np
+import pickle
 import yaml
 from astropy.io.misc.yaml import AstropyLoader
-import inspect
 from functools import wraps
-import pickle
-import numpy as np
 
 _DATA_LOADERS = {}
 
+
 class LoadError(IOError):
+    """Error raised on trying to load data from YAML files."""
+
     pass
+
 
 def data_loader(tag=None):
     """A decorator that turns a function into a YAML tag for loading external datafiles."""
+
     def inner(fnc):
         _DATA_LOADERS[fnc.__name__] = fnc
 
@@ -26,7 +31,7 @@ def data_loader(tag=None):
         def wrapper(data):
             try:
                 return fnc(data)
-            except (FileNotFoundError, IOError):
+            except IOError:
                 raise
             except Exception as e:
                 raise LoadError(str(e))
@@ -42,8 +47,10 @@ def data_loader(tag=None):
 
     return inner
 
+
 @data_loader("pkl")
 def pickle_loader(data):
+    """YAML tag for loading pickle files."""
     with open(data, "rb") as f:
         data = pickle.load(f)
     return data
@@ -51,24 +58,29 @@ def pickle_loader(data):
 
 @data_loader()
 def npz_loader(data):
+    """YAML tag for loading npz files."""
     return dict(np.load(data))
 
 
 @data_loader()
 def npy_loader(data):
+    """YAML tag for loading npy files."""
     return np.load(data)
+
 
 @data_loader()
 def txt_loader(data):
+    """YAML tag for loading ASCII files."""
     return np.genfromtxt(data)
 
 
 def yaml_func(tag=None):
     """A decorator that turns a function into a YAML tag."""
+
     def inner(fnc):
         new_tag = tag or fnc.__name__
         fnc.tag = new_tag
-            
+
         def yaml_fnc(loader, node):
             kwargs = loader.construct_mapping(node)
             return fnc(**kwargs)

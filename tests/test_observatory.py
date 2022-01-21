@@ -12,11 +12,11 @@ from py21cmsense.beam import GaussianBeam
 
 @pytest.fixture(scope="module")
 def bm():
-    return GaussianBeam(frequency=150.0 * units.MHz, dish_size=14*units.m)
+    return GaussianBeam(frequency=150.0 * units.MHz, dish_size=14 * units.m)
 
 
 def test_antpos(bm):
-    a = Observatory(antpos=np.zeros((10, 3))*units.m, beam=bm)
+    a = Observatory(antpos=np.zeros((10, 3)) * units.m, beam=bm)
     assert a.antpos.unit == units.m
 
     assert np.all(a.baselines_metres == 0)
@@ -27,22 +27,22 @@ def test_antpos(bm):
 
     # Need more than one antenna
     with pytest.raises(AssertionError):
-        Observatory(antpos=np.zeros((1, 3))*units.m, beam=bm)
+        Observatory(antpos=np.zeros((1, 3)) * units.m, beam=bm)
 
 
 def test_observatory_class(bm):
-    a = Observatory(antpos=np.zeros((3, 3))*units.m, beam=bm)
+    a = Observatory(antpos=np.zeros((3, 3)) * units.m, beam=bm)
     b = a.clone()
     assert a == b
 
 
 def test_Trcv(bm):
-    a = Observatory(antpos=np.zeros((3, 3))*units.m, beam=bm, Trcv=10*units.mK)
+    a = Observatory(antpos=np.zeros((3, 3)) * units.m, beam=bm, Trcv=10 * units.mK)
     assert a.Trcv.unit == units.mK
 
 
 def test_observatory(bm):
-    a = Observatory(antpos=np.zeros((3, 3))*units.m, beam=bm)
+    a = Observatory(antpos=np.zeros((3, 3)) * units.m, beam=bm)
     assert a.frequency == bm.frequency
     assert a.baselines_metres.shape == (3, 3, 3)
     assert (
@@ -51,7 +51,9 @@ def test_observatory(bm):
     assert a.baseline_lengths.shape == (3, 3)
     assert np.all(a.baseline_lengths == 0)
 
-    b = Observatory(antpos=np.array([[0, 0, 0], [1, 0, 0], [3, 0, 0]])*units.m, beam=bm)
+    b = Observatory(
+        antpos=np.array([[0, 0, 0], [1, 0, 0], [3, 0, 0]]) * units.m, beam=bm
+    )
     assert units.isclose(
         b.shortest_baseline / b.metres_to_wavelengths, 1 * units.m, rtol=1e-3
     )
@@ -61,7 +63,7 @@ def test_observatory(bm):
     assert b.observation_duration < 1 * units.day
     assert len(b.get_redundant_baselines()) == 6  # including swapped ones
     with pytest.raises(AssertionError):
-        b.time_offsets_from_obs_int_time(b.observation_duration*1.1)
+        b.time_offsets_from_obs_int_time(b.observation_duration * 1.1)
 
     assert len(b.time_offsets_from_obs_int_time(b.observation_duration / 1.05)) == 2
     assert units.isclose(
@@ -76,7 +78,9 @@ def test_projected_baselines():
 
 
 def test_grid_baselines(bm):
-    a = Observatory(antpos=np.random.normal(loc=0, scale=50, size=(20, 3))*units.m, beam=bm)
+    a = Observatory(
+        antpos=np.random.normal(loc=0, scale=50, size=(20, 3)) * units.m, beam=bm
+    )
     bl_groups = a.get_redundant_baselines()
     bl_coords = a.baseline_coords_from_groups(bl_groups)
     bl_counts = a.baseline_weights_from_groups(bl_groups)
@@ -91,7 +95,8 @@ def test_grid_baselines(bm):
 
 def test_min_max_antpos(bm):
     a = Observatory(
-        antpos=np.array([np.linspace(0, 50, 11), np.zeros(11), np.zeros(11)]).T * units.m,
+        antpos=np.array([np.linspace(0, 50, 11), np.zeros(11), np.zeros(11)]).T
+        * units.m,
         beam=bm,
         min_antpos=7 * units.m,
     )
@@ -99,7 +104,8 @@ def test_min_max_antpos(bm):
     assert len(a.antpos) == 9
 
     a = Observatory(
-        antpos=np.array([np.linspace(0, 50, 11), np.zeros(11), np.zeros(11)]).T * units.m,
+        antpos=np.array([np.linspace(0, 50, 11), np.zeros(11), np.zeros(11)]).T
+        * units.m,
         beam=bm,
         max_antpos=10 * units.m,
     )
@@ -109,7 +115,9 @@ def test_min_max_antpos(bm):
 
 def test_from_uvdata(bm):
     uv = pyuvdata.UVData()
-    uv.antenna_positions = np.array([[0, 0, 0], [0, 1, 0], [1, 0, 0], [40, 0, 40]]) * units.m
+    uv.antenna_positions = (
+        np.array([[0, 0, 0], [0, 1, 0], [1, 0, 0], [40, 0, 40]]) * units.m
+    )
     uv.telescope_location = [
         x.value for x in EarthLocation.from_geodetic(0, 0).to_geocentric()
     ]
@@ -134,14 +142,17 @@ def test_different_antpos_loaders(tmp_path: Path):
             unit: !astropy.units.Unit {unit: m}
             value: 14.0
     """
-    
+
     yamlnpy = """
     antpos: !astropy.units.Quantity
-        unit: !astropy.units.Unit {unit: m}
-        value: !npy %s/antpos.npy
-    %s
-    """%(tmp_path, beamtxt)
-    
+        unit: !astropy.units.Unit {{unit: m}}
+        value: !npy {}/antpos.npy
+    {}
+    """.format(
+        tmp_path,
+        beamtxt,
+    )
+
     with open(tmp_path / "npy.yml", "w") as fl:
         fl.write(yamlnpy)
 
@@ -149,10 +160,13 @@ def test_different_antpos_loaders(tmp_path: Path):
 
     yamltxt = """
     antpos: !astropy.units.Quantity
-        unit: !astropy.units.Unit {unit: m}
-        value: !txt %s/antpos.txt
-    %s
-    """%(tmp_path, beamtxt)
+        unit: !astropy.units.Unit {{unit: m}}
+        value: !txt {}/antpos.txt
+    {}
+    """.format(
+        tmp_path,
+        beamtxt,
+    )
     with open(tmp_path / "txt.yml", "w") as fl:
         fl.write(yamltxt)
 

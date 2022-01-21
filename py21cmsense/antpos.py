@@ -7,14 +7,17 @@ of antennae centred at zero.
 import numpy as np
 from astropy import constants as cnst
 from astropy import units as un
+from typing import Optional
 
 from . import types as tp
 from . import yaml
-from typing import Optional
+
 
 @yaml.yaml_func()
 @un.quantity_input(equivalencies=tp.time_as_distance)
-def hera(hex_num, separation: tp.Length = 14*un.m, dl: Optional[tp.Length]=None) -> tp.Meters:
+def hera(
+    hex_num, separation: tp.Length = 14 * un.m, dl: Optional[tp.Length] = None
+) -> tp.Meters:
     """
     Produce a simple regular hexagonal array.
 
@@ -25,7 +28,7 @@ def hera(hex_num, separation: tp.Length = 14*un.m, dl: Optional[tp.Length]=None)
     hex_num
         Number of antennas per side of the hexagon
     separation
-        The distance between antennas along a side. 
+        The distance between antennas along a side.
         May have units of distance or time, the latter interpreted as a distance travelled
         by light.
     dl
@@ -41,9 +44,9 @@ def hera(hex_num, separation: tp.Length = 14*un.m, dl: Optional[tp.Length]=None)
     if dl is None:
         dl = np.sin(60) * separation
 
-    separation = separation.to_value('m')
+    separation = separation.to_value("m")
     dl = dl.to_value("m")
-    
+
     antpos = []
     cen_z = 0
     for row in np.arange(hex_num):

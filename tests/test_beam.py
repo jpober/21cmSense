@@ -12,7 +12,7 @@ def test_abc():
 
 
 def test_gaussian_beam():
-    bm = GaussianBeam(150.0*units.MHz, dish_size=14 * units.m)
+    bm = GaussianBeam(150.0 * units.MHz, dish_size=14 * units.m)
 
     assert bm.frequency == 150.0 * units.MHz
     assert bm.dish_size == 14 * units.m
@@ -23,7 +23,7 @@ def test_gaussian_beam():
     assert bm.dish_size == 14 * units.m
 
     assert not hasattr(bm.dish_size_in_lambda, "unit")
-    assert bm.area != bm.at(160*units.MHz).area
+    assert bm.area != bm.at(160 * units.MHz).area
 
     with pytest.raises(NotImplementedError):
         GaussianBeam.from_uvbeam()

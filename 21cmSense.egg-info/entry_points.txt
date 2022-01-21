@@ -1,3 +1,2 @@
 [console_scripts]
 sense = py21cmsense.cli:main
-

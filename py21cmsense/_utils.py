@@ -111,6 +111,7 @@ def phase(jd, ra, dec, telescope_location, uvws0):
         )
     return uvws[:, r_inds, :]
 
+
 @un.quantity_input
 def phase_past_zenith(time_past_zenith: un.day, uvws0: np.ndarray, latitude: un.rad):
     """Compute UVWs phased to a point rotated from zenith by a certain amount of time.

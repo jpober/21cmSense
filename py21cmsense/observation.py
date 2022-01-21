@@ -1,11 +1,11 @@
 """A module defining interferometric observation objects."""
-from __future__ import division, annotations
+from __future__ import annotations, division
 
 import attr
 import collections
 import numpy as np
-from astropy.io.misc import yaml
 from astropy import units as u
+from astropy.io.misc import yaml
 from attr import converters as cnv
 from attr import validators as vld
 from cached_property import cached_property
@@ -15,6 +15,7 @@ from . import _utils as ut
 from . import conversions as conv
 from . import observatory as obs
 from . import types as tp
+
 
 @attr.s(kw_only=True, frozen=True)
 class Observation:
@@ -73,39 +74,40 @@ class Observation:
     observatory: obs.Observatory = attr.ib(validator=vld.instance_of(obs.Observatory))
 
     time_per_day: tp.Time = attr.ib(
-        6 * u.hour, validator=(tp.vld_physical_type('time'), ut.between(0*u.hour, 24*u.hour))
+        6 * u.hour,
+        validator=(tp.vld_physical_type("time"), ut.between(0 * u.hour, 24 * u.hour)),
     )
     obs_duration: tp.Time = attr.ib(
-        validator=(tp.vld_physical_type('time'), ut.between(0, 24*u.hour)),
+        validator=(tp.vld_physical_type("time"), ut.between(0, 24 * u.hour)),
     )
     integration_time: tp.Time = attr.ib(
-        60 * u.second, validator=(tp.vld_physical_type('time'), ut.positive)
+        60 * u.second, validator=(tp.vld_physical_type("time"), ut.positive)
     )
     n_channels: int = attr.ib(82, converter=int, validator=ut.positive)
     bandwidth: tp.Frequency = attr.ib(
-        8 * u.MHz, validator=(tp.vld_physical_type('frequency'), ut.positive)
+        8 * u.MHz, validator=(tp.vld_physical_type("frequency"), ut.positive)
     )
     n_days: int = attr.ib(default=180, converter=int, validator=ut.positive)
     bl_min: tp.Length = attr.ib(
-        default=0*u.m, validator=(tp.vld_physical_type('length'), ut.nonnegative)
+        default=0 * u.m, validator=(tp.vld_physical_type("length"), ut.nonnegative)
     )
     bl_max: tp.Length = attr.ib(
         default=np.inf * u.m,
-        validator=(tp.vld_physical_type('length'), ut.nonnegative),
+        validator=(tp.vld_physical_type("length"), ut.nonnegative),
     )
     redundancy_tol: int = attr.ib(default=1, converter=int, validator=ut.nonnegative)
     coherent: bool = attr.ib(default=True, converter=bool)
 
     # The following defaults are based on Mozdzen et al. 2017: 2017MNRAS.464.4995M,
     # figure 8, with galaxy down.
-    spectral_index: float = attr.ib(default=2.6, converter=float, validator=ut.between(1.5, 4))
+    spectral_index: float = attr.ib(
+        default=2.6, converter=float, validator=ut.between(1.5, 4)
+    )
     tsky_amplitude: tp.Temperature = attr.ib(
         default=260000 * u.mK,
         validator=ut.nonnegative,
     )
-    tsky_ref_freq: tp.Frequency = attr.ib(
-        default=150 * u.MHz, validator=ut.positive
-    )
+    tsky_ref_freq: tp.Frequency = attr.ib(default=150 * u.MHz, validator=ut.positive)
 
     # TODO: there should be validation on this, but it's a bit tricky, because
     # the validation depends on properties of the observatory class.
@@ -141,12 +143,12 @@ class Observation:
     def _obs_duration_vld(self, att, val):
         if val > self.time_per_day:
             raise ValueError("obs_duration must be <= time_per_day")
-        
+
     @integration_time.validator
     def _integration_time_vld(self, att, val):
         if val > self.obs_duration:
             raise ValueError("integration_time must be <= obs_duration")
-        
+
     @obs_duration.default
     def _obstime_default(self):
         # time it takes the sky to drift through beam FWHM
@@ -159,9 +161,11 @@ class Observation:
                 "bl_max must be greater than bl_min, got "
                 f"bl_min={self.bl_min} and bl_max={val}"
             )
-            
+
     @cached_property
-    def baseline_groups(self) -> dict[tuple(float, float, float), list[tuple(int, int)]]:
+    def baseline_groups(
+        self,
+    ) -> dict[tuple(float, float, float), list[tuple(int, int)]]:
         """A dictionary of redundant baseline groups.
 
         Keys are tuples of floats (X,Y,LENGTH), and
@@ -234,7 +238,7 @@ class Observation:
     @cached_property
     def Tsys(self) -> u.Quantity[u.K]:
         """System temperature (i.e. Tsky + Trcv)."""
-        return self.Tsky.to('K') + self.observatory.Trcv.to('K')
+        return self.Tsky.to("K") + self.observatory.Trcv.to("K")
 
     @cached_property
     def redshift(self) -> float:
@@ -244,7 +248,9 @@ class Observation:
     @cached_property
     def eta(self) -> u.Quantity[1 / u.MHz]:
         """The fourier dual of the frequencies of the observation."""
-        return np.fft.fftfreq(self.n_channels, self.bandwidth.to("MHz") / self.n_channels)
+        return np.fft.fftfreq(
+            self.n_channels, self.bandwidth.to("MHz") / self.n_channels
+        )
 
     @cached_property
     def kparallel(self) -> u.Quantity[u.littleh / u.Mpc]:

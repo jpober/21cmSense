@@ -1,5 +1,6 @@
 """Simplistic beam definitions."""
 from __future__ import annotations
+
 import attr
 from abc import ABCMeta, abstractmethod, abstractproperty
 from astropy import constants as cnst
@@ -8,12 +9,13 @@ from astropy import units as un
 from . import _utils as ut
 from . import types as tp
 
+
 @attr.s(frozen=True)
 class PrimaryBeam(metaclass=ABCMeta):
     """A Base class defining a Primary Beam and the methods it requires to define."""
 
     frequency: tp.Frequency = attr.ib(
-        validator=(tp.vld_physical_type('frequency'), ut.positive),
+        validator=(tp.vld_physical_type("frequency"), ut.positive),
     )
 
     def new(self, **kwargs) -> PrimaryBeam:
@@ -23,7 +25,7 @@ class PrimaryBeam(metaclass=ABCMeta):
     def at(self, frequency: tp.Frequency) -> PrimaryBeam:
         """Get a copy of the object at a new frequency."""
         return attr.evolve(self, frequency=frequency)
-    
+
     @abstractproperty
     def area(self) -> un.steradian:
         """Beam area [units: sr]."""
@@ -79,7 +81,9 @@ class GaussianBeam(PrimaryBeam):
         otherwise defined. This generates the beam size.
     """
 
-    dish_size: tp.Length = attr.ib(validator=(tp.vld_physical_type('length'), ut.positive))
+    dish_size: tp.Length = attr.ib(
+        validator=(tp.vld_physical_type("length"), ut.positive)
+    )
 
     @property
     def dish_size_in_lambda(self) -> float:

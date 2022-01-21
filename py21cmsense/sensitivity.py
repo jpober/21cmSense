@@ -14,9 +14,9 @@ import numpy as np
 import os
 import pickle
 import tqdm
-from astropy.io.misc import yaml
 from astropy import units as un
 from astropy.cosmology.units import littleh, with_H0
+from astropy.io.misc import yaml
 from attr import validators as vld
 from cached_property import cached_property
 from collections.abc import Mapping
@@ -31,14 +31,16 @@ from . import conversions as conv
 from . import observation as obs
 from . import types as tp
 
+
 def _kconverter(val, allow_unitless=False):
     if hasattr(val, "unit"):
-        return val.to(littleh/un.Mpc, with_H0(config.COSMO.H0))
+        return val.to(littleh / un.Mpc, with_H0(config.COSMO.H0))
     if not allow_unitless:
         raise ValueError("no units supplied!")
     # Assume it has the 1/Mpc units (default from 21cmFAST)
-    return (val / un.Mpc).to(littleh/un.Mpc, with_H0(config.COSMO.H0))
-    
+    return (val / un.Mpc).to(littleh / un.Mpc, with_H0(config.COSMO.H0))
+
+
 # Get default k, power
 _K21_DEFAULT, _D21_DEFAULT = np.genfromtxt(
     os.path.join(
@@ -48,7 +50,7 @@ _K21_DEFAULT, _D21_DEFAULT = np.genfromtxt(
 ).T[:2]
 
 _K21_DEFAULT = _kconverter(_K21_DEFAULT, allow_unitless=True)
-_D21_DEFAULT <<= un.mK**2
+_D21_DEFAULT <<= un.mK ** 2
 
 logger = logging.getLogger(__name__)
 
@@ -109,9 +111,6 @@ class Sensitivity:
         return klass(observation=observation, **data)
 
 
-
-
-
 @attr.s(kw_only=True)
 class PowerSpectrum(Sensitivity):
     """
@@ -136,17 +135,21 @@ class PowerSpectrum(Sensitivity):
 
     horizon_buffer: tp.Wavenumber = attr.ib(
         default=0.1 * littleh / un.Mpc,
-        validator=(tp.vld_unit(littleh / un.Mpc, with_H0(config.COSMO.H0)), ut.nonnegative),
+        validator=(
+            tp.vld_unit(littleh / un.Mpc, with_H0(config.COSMO.H0)),
+            ut.nonnegative,
+        ),
         converter=_kconverter,
     )
     foreground_model: str = attr.ib(
         default="moderate", validator=vld.in_(["moderate", "optimistic"])
     )
-    k_21: tp.Wavenumber = attr.ib(_K21_DEFAULT, validator=tp.vld_unit(littleh / un.Mpc, with_H0(config.COSMO.H0)), 
-                                  converter=_kconverter)
-    delta_21: tp.Delta = attr.ib(
-        _D21_DEFAULT, validator=(tp.vld_unit(un.mK**2))
+    k_21: tp.Wavenumber = attr.ib(
+        _K21_DEFAULT,
+        validator=tp.vld_unit(littleh / un.Mpc, with_H0(config.COSMO.H0)),
+        converter=_kconverter,
     )
+    delta_21: tp.Delta = attr.ib(_D21_DEFAULT, validator=(tp.vld_unit(un.mK ** 2)))
 
     @classmethod
     def from_yaml(cls, yaml_file) -> Sensitivity:
@@ -161,7 +164,7 @@ class PowerSpectrum(Sensitivity):
         p21 = data.pop("p21", None)
         if p21 is not None:
             data["k_21"] = p21[:, 0] << 1 / un.Mpc
-            data["delta_21"] = p21[:, 1] << un.mK**2
+            data["delta_21"] = p21[:, 1] << un.mK ** 2
 
         if isinstance(yaml_file, str):
             obsfile = path.join(path.dirname(yaml_file), data.pop("observation"))
@@ -184,7 +187,11 @@ class PowerSpectrum(Sensitivity):
     @cached_property
     def p21(self):
         """An interpolation function defining the cosmological power spectrum."""
-        fnc = interpolate.interp1d(self.k_21.to_value(littleh/un.Mpc), self.delta_21.to_value(un.mK**2), kind="linear")
+        fnc = interpolate.interp1d(
+            self.k_21.to_value(littleh / un.Mpc),
+            self.delta_21.to_value(un.mK ** 2),
+            kind="linear",
+        )
         return lambda k: fnc(k) * un.mK ** 2
 
     @cached_property
@@ -221,7 +228,7 @@ class PowerSpectrum(Sensitivity):
         return np.arange(mn.value, self.k_max.value, delta.value) * delta.unit
 
     @cached_property
-    def X2Y(self) -> un.Quantity[un.Mpc**3 / littleh**3 / un.steradian / un.GHz]:
+    def X2Y(self) -> un.Quantity[un.Mpc ** 3 / littleh ** 3 / un.steradian / un.GHz]:
         """Cosmological scaling factor X^2*Y (eg. Parsons 2012)."""
         return conv.X2Y(self.observation.redshift)
 
@@ -251,13 +258,15 @@ class PowerSpectrum(Sensitivity):
             * self.observation.bandwidth
             * k ** 3
             / (2 * np.pi ** 2)
-        ).to_value('')
+        ).to_value("")
 
-    def thermal_noise(self, k_par: tp.Wavenumber, k_perp: tp.Wavenumber, trms: tp.Temperature) -> tp.Delta:
+    def thermal_noise(
+        self, k_par: tp.Wavenumber, k_perp: tp.Wavenumber, trms: tp.Temperature
+    ) -> tp.Delta:
         """Thermal noise contribution at particular k mode."""
         k = np.sqrt(k_par ** 2 + k_perp ** 2)
         scalar = self.power_normalisation(k)
-        return scalar * trms.to('mK') ** 2
+        return scalar * trms.to("mK") ** 2
 
     def sample_noise(self, k_par: tp.Wavenumber, k_perp: tp.Wavenumber) -> tp.Delta:
         """Sample variance contribution at a particular k mode."""
@@ -268,7 +277,9 @@ class PowerSpectrum(Sensitivity):
         return vals
 
     @cached_property
-    def _nsamples_2d(self) -> dict[str, dict[tp.Wavenumber, un.Quantity[1/ un.mK**4]]]:
+    def _nsamples_2d(
+        self,
+    ) -> dict[str, dict[tp.Wavenumber, un.Quantity[1 / un.mK ** 4]]]:
         """Mid-way product specifying thermal and sample variance over the 2D grid."""
         # set up blank arrays/dictionaries
         sense = {"sample": {}, "thermal": {}, "both": {}}
@@ -330,7 +341,9 @@ class PowerSpectrum(Sensitivity):
         return sense
 
     @lru_cache()
-    def calculate_sensitivity_2d(self, thermal: bool=True, sample: bool=True) -> dict[tp.Wavenumber, tp.Delta]:
+    def calculate_sensitivity_2d(
+        self, thermal: bool = True, sample: bool = True
+    ) -> dict[tp.Wavenumber, tp.Delta]:
         """
         Calculate power spectrum sensitivity for a grid of cylindrical k modes.
 
@@ -417,7 +430,9 @@ class PowerSpectrum(Sensitivity):
         return sense1d
 
     @lru_cache()
-    def calculate_sensitivity_1d(self, thermal: bool=True, sample: bool=True) -> tp.Delta:
+    def calculate_sensitivity_1d(
+        self, thermal: bool = True, sample: bool = True
+    ) -> tp.Delta:
         """Calculate a 1D sensitivity curve.
 
         Parameters
@@ -441,7 +456,9 @@ class PowerSpectrum(Sensitivity):
         return self.p21(self.k1d)
 
     @lru_cache()
-    def calculate_significance(self, thermal: bool=True, sample: bool=True) -> float:
+    def calculate_significance(
+        self, thermal: bool = True, sample: bool = True
+    ) -> float:
         """
         Calculate significance of a detection of the default cosmological power spectrum.
 
@@ -463,7 +480,7 @@ class PowerSpectrum(Sensitivity):
         snr = self.delta_squared[mask] / sense1d[mask]
         return np.sqrt(float(np.dot(snr, snr.T)))
 
-    def plot_sense_2d(self, sense2d:  dict[tp.Wavenumber, tp.Delta]):
+    def plot_sense_2d(self, sense2d: dict[tp.Wavenumber, tp.Delta]):
         """Create a colormap plot of the sensitivity un UV bins."""
         try:
             import matplotlib.pyplot as plt
@@ -554,7 +571,9 @@ class PowerSpectrum(Sensitivity):
 
         return plt.gcf()
 
-    def _get_all_sensitivity_combos(self, thermal: bool, sample: bool) -> dict[str, tp.Delta]:
+    def _get_all_sensitivity_combos(
+        self, thermal: bool, sample: bool
+    ) -> dict[str, tp.Delta]:
         result = {}
         if thermal:
             result["thermal_noise"] = self.calculate_sensitivity_1d(sample=False)
