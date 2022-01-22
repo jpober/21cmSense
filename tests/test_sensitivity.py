@@ -3,14 +3,8 @@ import pytest
 import numpy as np
 from astropy import units
 
-from py21cmsense import (
-    GaussianBeam,
-    Observation,
-    Observatory,
-    PowerSpectrum,
-    _kconverter,
-)
-from py21cmsense.sensitivity import Sensitivity
+from py21cmsense import GaussianBeam, Observation, Observatory, PowerSpectrum
+from py21cmsense.sensitivity import Sensitivity, _kconverter
 
 
 @pytest.fixture(scope="module")
