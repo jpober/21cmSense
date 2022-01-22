@@ -36,10 +36,10 @@ time_as_distance = [
 ]
 
 
-def vld_physical_type(unit: str) -> Callable[[attr.Attribute, Any], None]:
+def vld_physical_type(unit: str) -> Callable[[Any, attr.Attribute, Any], None]:
     """Attr validator to check physical type."""
 
-    def _check_type(self, att, val):
+    def _check_type(self: Any, att: attr.Attribute, val: Any):
         if not isinstance(val, u.Quantity):
             raise UnitError(f"{att.name} must be an astropy Quantity!")
         if val.unit.physical_type != unit:
