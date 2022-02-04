@@ -4,7 +4,7 @@ from __future__ import annotations, division
 import attr
 import collections
 import numpy as np
-from astropy import units as u
+from astropy import units as un
 from astropy.io.misc import yaml
 from attr import converters as cnv
 from attr import validators as vld
@@ -74,25 +74,25 @@ class Observation:
     observatory: obs.Observatory = attr.ib(validator=vld.instance_of(obs.Observatory))
 
     time_per_day: tp.Time = attr.ib(
-        6 * u.hour,
-        validator=(tp.vld_physical_type("time"), ut.between(0 * u.hour, 24 * u.hour)),
+        6 * un.hour,
+        validator=(tp.vld_physical_type("time"), ut.between(0 * un.hour, 24 * un.hour)),
     )
     obs_duration: tp.Time = attr.ib(
-        validator=(tp.vld_physical_type("time"), ut.between(0, 24 * u.hour)),
+        validator=(tp.vld_physical_type("time"), ut.between(0, 24 * un.hour)),
     )
     integration_time: tp.Time = attr.ib(
-        60 * u.second, validator=(tp.vld_physical_type("time"), ut.positive)
+        60 * un.second, validator=(tp.vld_physical_type("time"), ut.positive)
     )
     n_channels: int = attr.ib(82, converter=int, validator=ut.positive)
     bandwidth: tp.Frequency = attr.ib(
-        8 * u.MHz, validator=(tp.vld_physical_type("frequency"), ut.positive)
+        8 * un.MHz, validator=(tp.vld_physical_type("frequency"), ut.positive)
     )
     n_days: int = attr.ib(default=180, converter=int, validator=ut.positive)
     bl_min: tp.Length = attr.ib(
-        default=0 * u.m, validator=(tp.vld_physical_type("length"), ut.nonnegative)
+        default=0 * un.m, validator=(tp.vld_physical_type("length"), ut.nonnegative)
     )
     bl_max: tp.Length = attr.ib(
-        default=np.inf * u.m,
+        default=np.inf * un.m,
         validator=(tp.vld_physical_type("length"), ut.nonnegative),
     )
     redundancy_tol: int = attr.ib(default=1, converter=int, validator=ut.nonnegative)
@@ -104,10 +104,10 @@ class Observation:
         default=2.6, converter=float, validator=ut.between(1.5, 4)
     )
     tsky_amplitude: tp.Temperature = attr.ib(
-        default=260000 * u.mK,
+        default=260000 * un.mK,
         validator=ut.nonnegative,
     )
-    tsky_ref_freq: tp.Frequency = attr.ib(default=150 * u.MHz, validator=ut.positive)
+    tsky_ref_freq: tp.Frequency = attr.ib(default=150 * un.MHz, validator=ut.positive)
 
     # TODO: there should be validation on this, but it's a bit tricky, because
     # the validation depends on properties of the observatory class.
@@ -177,7 +177,7 @@ class Observation:
         )
 
     @cached_property
-    def baseline_group_coords(self) -> u.Quantity[u.m]:
+    def baseline_group_coords(self) -> un.Quantity[un.m]:
         """Co-ordinates of baseline groups in metres."""
         return self.observatory.baseline_coords_from_groups(self.baseline_groups)
 
@@ -187,7 +187,7 @@ class Observation:
         return self.observatory.baseline_weights_from_groups(self.baseline_groups)
 
     @property
-    def frequency(self) -> u.Quantity[u.MHz]:
+    def frequency(self) -> un.Quantity[un.MHz]:
         """Frequency of the observation."""
         return self.observatory.frequency
 
@@ -229,14 +229,14 @@ class Observation:
         return (self.time_per_day / self.obs_duration).to("").value
 
     @cached_property
-    def Tsky(self) -> u.Quantity[u.K]:
+    def Tsky(self) -> un.Quantity[un.K]:
         """Temperature of the sky at the default frequency."""
         return self.tsky_amplitude.to("K") * (self.frequency / self.tsky_ref_freq) ** (
             -self.spectral_index
         )
 
     @cached_property
-    def Tsys(self) -> u.Quantity[u.K]:
+    def Tsys(self) -> un.Quantity[un.K]:
         """System temperature (i.e. Tsky + Trcv)."""
         return self.Tsky.to("K") + self.observatory.Trcv.to("K")
 
@@ -246,14 +246,14 @@ class Observation:
         return conv.f2z(self.frequency)
 
     @cached_property
-    def eta(self) -> u.Quantity[1 / u.MHz]:
+    def eta(self) -> un.Quantity[1 / un.MHz]:
         """The fourier dual of the frequencies of the observation."""
         return np.fft.fftfreq(
             self.n_channels, self.bandwidth.to("MHz") / self.n_channels
         )
 
     @cached_property
-    def kparallel(self) -> u.Quantity[u.littleh / u.Mpc]:
+    def kparallel(self) -> un.Quantity[un.littleh / un.Mpc]:
         """1D array of kpar values, defined by the bandwidth and number of channels.
 
         Order of the values is the same as `fftfreq` (i.e. zero-first)
@@ -261,15 +261,15 @@ class Observation:
         return conv.dk_deta(self.redshift) * self.eta
 
     @cached_property
-    def total_integration_time(self) -> u.Quantity[u.s]:
+    def total_integration_time(self) -> un.Quantity[un.s]:
         """The total (effective) integration time over UV bins for a particular LST bin.
 
         The u-values on each side of the grid are given by :func:`ugrid`.
         """
-        return self.uv_coverage * self.n_days * self.integration_time.to(u.s)
+        return self.uv_coverage * self.n_days * self.integration_time.to(un.s)
 
     @cached_property
-    def Trms(self) -> u.Quantity[u.K]:
+    def Trms(self) -> un.Quantity[un.K]:
         """Effective radiometric noise temperature per UV bin.
 
         (i.e. divided by bandwidth and integration time).
