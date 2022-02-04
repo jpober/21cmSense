@@ -37,10 +37,13 @@ jobs:
           conda info
           python --version
 
-      - name: Run Tests
+      - name: Install Test Deps
         run: |
           pip install .[test]
           conda list
+
+      - name: Run Tests
+        run: |
           python -m pytest --cov=py21cmsense --cov-config=.coveragerc --cov-report xml:./coverage.xml --junitxml=test-reports/xunit.xml
 
       - uses: codecov/codecov-action@v2
