@@ -9,4 +9,6 @@
 observatory: observatory_hera.yml
 
 # These are relatively "set" by the observatory.
-integration_time: 10.7
+integration_time: !astropy.units.Quantity
+  unit: !astropy.units.Unit {unit: s}
+  value: 10.7

@@ -3,15 +3,19 @@
 # for that object, or use `help(Observatory)` in an interpreter to see available
 # options.
 
-antpos:
-  function: hera  # if antpos is a dict, it uses a function from antpos.py
-  hex_num: 7
-  separation: 14
-  dl: 12.12
-  units: m
+antpos: !hera
+  hex_num: 3
 beam:
   class: GaussianBeam
-  frequency: 150    # By default, in MHz
-  dish_size: 14.0   # By default, in m
-latitude: 0.536189  # In radians
-Trcv: 100000
+  frequency: !astropy.units.Quantity
+    unit: !astropy.units.Unit {unit: MHz}
+    value: 150
+  dish_size: !astropy.units.Quantity
+    unit: !astropy.units.Unit {unit: m}
+    value: 14.0
+latitude: !astropy.units.Quantity
+  unit: !astropy.units.Unit {unit: rad}
+  value: 0.536189
+Trcv: !astropy.units.Quantity
+  unit: !astropy.units.Unit {unit: K}
+  value: 100

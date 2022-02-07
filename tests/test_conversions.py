@@ -8,8 +8,8 @@ from py21cmsense import conversions as cnv
 
 
 def test_f2z():
-    assert cnv.f2z(0.15) == cnv.f2z(150.0 * units.MHz)
-    assert np.isclose(cnv.f2z(0.142).value, 9, atol=0.1)
+    assert np.isclose(cnv.f2z(0.15 * units.GHz), cnv.f2z(150.0 * units.MHz), rtol=1e-6)
+    assert np.isclose(cnv.f2z(0.142 * units.GHz), 9, atol=0.1)
 
 
 def test_z2f():
@@ -17,7 +17,7 @@ def test_z2f():
 
 
 def test_dL_dth():
-    (cnv.dL_dth(10) * 1 * units.rad).to("Mpc/littleh")
+    (cnv.dL_dth(10) * units.rad).to("Mpc/littleh")
     cosmo = Planck15.clone(H0=Planck15.H0 / 1.1)
     assert cnv.dL_dth(10, cosmo) < cnv.dL_dth(10)
 

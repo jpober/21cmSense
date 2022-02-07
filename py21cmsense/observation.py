@@ -1,11 +1,11 @@
 """A module defining interferometric observation objects."""
-from __future__ import division, print_function
+from __future__ import annotations
 
 import attr
 import collections
 import numpy as np
-import yaml
-from astropy import units
+from astropy import units as un
+from astropy.io.misc import yaml
 from attr import converters as cnv
 from attr import validators as vld
 from cached_property import cached_property
@@ -14,7 +14,7 @@ from os import path
 from . import _utils as ut
 from . import conversions as conv
 from . import observatory as obs
-from ._utils import apply_or_convert_unit
+from . import types as tp
 
 
 @attr.s(kw_only=True, frozen=True)
@@ -71,45 +71,43 @@ class Observation:
         See `spectral_index`. Default assumed to be in MHz.
     """
 
-    observatory = attr.ib(validator=vld.instance_of(obs.Observatory))
+    observatory: obs.Observatory = attr.ib(validator=vld.instance_of(obs.Observatory))
 
-    hours_per_day = attr.ib(
-        6, converter=ut.apply_or_convert_unit("hour"), validator=ut.positive
+    time_per_day: tp.Time = attr.ib(
+        6 * un.hour,
+        validator=(tp.vld_physical_type("time"), ut.between(0 * un.hour, 24 * un.hour)),
     )
-    obs_duration = attr.ib(
-        converter=cnv.optional(apply_or_convert_unit("min")),
-        validator=vld.optional(ut.positive),
+    obs_duration: tp.Time = attr.ib(
+        validator=(tp.vld_physical_type("time"), ut.between(0, 24 * un.hour)),
     )
-    integration_time = attr.ib(
-        60, converter=apply_or_convert_unit("s"), validator=ut.positive
+    integration_time: tp.Time = attr.ib(
+        60 * un.second, validator=(tp.vld_physical_type("time"), ut.positive)
     )
-    n_channels = attr.ib(82, converter=int, validator=ut.positive)
-    bandwidth = attr.ib(
-        8, converter=apply_or_convert_unit("MHz"), validator=ut.positive
+    n_channels: int = attr.ib(82, converter=int, validator=ut.positive)
+    bandwidth: tp.Frequency = attr.ib(
+        8 * un.MHz, validator=(tp.vld_physical_type("frequency"), ut.positive)
     )
-    n_days = attr.ib(default=180, converter=int, validator=ut.positive)
-    bl_min = attr.ib(
-        default=0, converter=ut.apply_or_convert_unit("m"), validator=ut.nonnegative
+    n_days: int = attr.ib(default=180, converter=int, validator=ut.positive)
+    bl_min: tp.Length = attr.ib(
+        default=0 * un.m, validator=(tp.vld_physical_type("length"), ut.nonnegative)
     )
-    bl_max = attr.ib(
-        default=np.inf,
-        converter=ut.apply_or_convert_unit("m"),
-        validator=ut.nonnegative,
+    bl_max: tp.Length = attr.ib(
+        default=np.inf * un.m,
+        validator=(tp.vld_physical_type("length"), ut.nonnegative),
     )
-    redundancy_tol = attr.ib(default=1, converter=int, validator=ut.nonnegative)
-    coherent = attr.ib(default=True, converter=bool)
+    redundancy_tol: int = attr.ib(default=1, converter=int, validator=ut.nonnegative)
+    coherent: bool = attr.ib(default=True, converter=bool)
 
     # The following defaults are based on Mozdzen et al. 2017: 2017MNRAS.464.4995M,
     # figure 8, with galaxy down.
-    spectral_index = attr.ib(default=2.6, converter=float, validator=ut.between(1.5, 4))
-    tsky_amplitude = attr.ib(
-        default=260000,
-        converter=ut.apply_or_convert_unit("mK"),
+    spectral_index: float = attr.ib(
+        default=2.6, converter=float, validator=ut.between(1.5, 4)
+    )
+    tsky_amplitude: tp.Temperature = attr.ib(
+        default=260000 * un.mK,
         validator=ut.nonnegative,
     )
-    tsky_ref_freq = attr.ib(
-        default=150, converter=ut.apply_or_convert_unit("MHz"), validator=ut.positive
-    )
+    tsky_ref_freq: tp.Frequency = attr.ib(default=150 * un.MHz, validator=ut.positive)
 
     # TODO: there should be validation on this, but it's a bit tricky, because
     # the validation depends on properties of the observatory class.
@@ -121,7 +119,7 @@ class Observation:
         """Construct an :class:`Observation` from a YAML file."""
         if isinstance(yaml_file, str):
             with open(yaml_file) as fl:
-                data = yaml.load(fl, Loader=yaml.FullLoader)
+                data = yaml.load(fl)
         elif isinstance(yaml_file, collections.abc.Mapping):
             data = yaml_file
         else:
@@ -141,13 +139,33 @@ class Observation:
         observatory = obs.Observatory.from_yaml(data.pop("observatory"))
         return cls(observatory=observatory, **data)
 
+    @obs_duration.validator
+    def _obs_duration_vld(self, att, val):
+        if val > self.time_per_day:
+            raise ValueError("obs_duration must be <= time_per_day")
+
+    @integration_time.validator
+    def _integration_time_vld(self, att, val):
+        if val > self.obs_duration:
+            raise ValueError("integration_time must be <= obs_duration")
+
     @obs_duration.default
     def _obstime_default(self):
         # time it takes the sky to drift through beam FWHM
         return self.observatory.observation_duration
 
+    @bl_max.validator
+    def _bl_max_vld(self, att, val):
+        if val <= self.bl_min:
+            raise ValueError(
+                "bl_max must be greater than bl_min, got "
+                f"bl_min={self.bl_min} and bl_max={val}"
+            )
+
     @cached_property
-    def baseline_groups(self) -> dict:
+    def baseline_groups(
+        self,
+    ) -> dict[tuple(float, float, float), list[tuple(int, int)]]:
         """A dictionary of redundant baseline groups.
 
         Keys are tuples of floats (X,Y,LENGTH), and
@@ -159,22 +177,22 @@ class Observation:
         )
 
     @cached_property
-    def baseline_group_coords(self):
+    def baseline_group_coords(self) -> un.Quantity[un.m]:
         """Co-ordinates of baseline groups in metres."""
         return self.observatory.baseline_coords_from_groups(self.baseline_groups)
 
     @cached_property
-    def baseline_group_counts(self):
+    def baseline_group_counts(self) -> np.ndarray:
         """The number of baselines in each group."""
         return self.observatory.baseline_weights_from_groups(self.baseline_groups)
 
     @property
-    def frequency(self):
+    def frequency(self) -> un.Quantity[un.MHz]:
         """Frequency of the observation."""
         return self.observatory.frequency
 
     @cached_property
-    def uv_coverage(self):
+    def uv_coverage(self) -> np.ndarray:
         """A 2D array specifying the effective number of baselines in a grid of UV.
 
         Defined after earth rotation synthesis for a particular LST bin.
@@ -188,7 +206,7 @@ class Observation:
         else:
             fnc = self.observatory.grid_baselines_coherent
 
-        grid = fnc(
+        return fnc(
             baselines=self.baseline_group_coords,
             weights=self.baseline_group_counts,
             integration_time=self.integration_time,
@@ -198,10 +216,8 @@ class Observation:
             ndecimals=self.redundancy_tol,
         )
 
-        return grid
-
     @cached_property
-    def n_lst_bins(self):
+    def n_lst_bins(self) -> float:
         """
         Number of LST bins in the complete observation.
 
@@ -210,32 +226,34 @@ class Observation:
         where `obs_duration` is the time it takes for a source to travel
         through the beam FWHM.
         """
-        return (self.hours_per_day / self.obs_duration).to("")
+        return (self.time_per_day / self.obs_duration).to("").value
 
     @cached_property
-    def Tsky(self):
+    def Tsky(self) -> un.Quantity[un.K]:
         """Temperature of the sky at the default frequency."""
-        return self.tsky_amplitude * (self.frequency / self.tsky_ref_freq) ** (
+        return self.tsky_amplitude.to("K") * (self.frequency / self.tsky_ref_freq) ** (
             -self.spectral_index
         )
 
     @cached_property
-    def Tsys(self):
+    def Tsys(self) -> un.Quantity[un.K]:
         """System temperature (i.e. Tsky + Trcv)."""
-        return self.Tsky + self.observatory.Trcv
+        return self.Tsky.to("K") + self.observatory.Trcv.to("K")
 
     @cached_property
-    def redshift(self):
+    def redshift(self) -> float:
         """Central redshift of the observation."""
         return conv.f2z(self.frequency)
 
     @cached_property
-    def eta(self):
+    def eta(self) -> un.Quantity[1 / un.MHz]:
         """The fourier dual of the frequencies of the observation."""
-        return np.fft.fftfreq(self.n_channels, self.bandwidth / self.n_channels)
+        return np.fft.fftfreq(
+            self.n_channels, self.bandwidth.to("MHz") / self.n_channels
+        )
 
     @cached_property
-    def kparallel(self):
+    def kparallel(self) -> un.Quantity[un.littleh / un.Mpc]:
         """1D array of kpar values, defined by the bandwidth and number of channels.
 
         Order of the values is the same as `fftfreq` (i.e. zero-first)
@@ -243,15 +261,15 @@ class Observation:
         return conv.dk_deta(self.redshift) * self.eta
 
     @cached_property
-    def total_integration_time(self):
+    def total_integration_time(self) -> un.Quantity[un.s]:
         """The total (effective) integration time over UV bins for a particular LST bin.
 
         The u-values on each side of the grid are given by :func:`ugrid`.
         """
-        return self.uv_coverage * self.n_days * self.integration_time
+        return self.uv_coverage * self.n_days * self.integration_time.to(un.s)
 
     @cached_property
-    def Trms(self):
+    def Trms(self) -> un.Quantity[un.K]:
         """Effective radiometric noise temperature per UV bin.
 
         (i.e. divided by bandwidth and integration time).
@@ -259,13 +277,13 @@ class Observation:
         """
         out = np.ones(self.total_integration_time.shape) * np.inf * self.Tsys.unit
         mask = self.total_integration_time > 0
-        out[mask] = self.Tsys / np.sqrt(
+        out[mask] = self.Tsys.to("K") / np.sqrt(
             2 * self.bandwidth * self.total_integration_time[mask]
         ).to("")
         return out
 
     @cached_property
-    def ugrid(self):
+    def ugrid(self) -> np.ndarray:
         """Centres of the linear grid which defines a side of the UV grid.
 
         The UV grid is defined by :func:`uv_coverage`.
@@ -273,14 +291,14 @@ class Observation:
         return self.observatory.ugrid(self.bl_max)
 
     @cached_property
-    def ugrid_edges(self):
+    def ugrid_edges(self) -> np.ndarray:
         """Edges of the linear grid which defines a side of the UV grid.
 
         The UV grid is defined by :func:`uv_coverage`.
         """
         return self.observatory.ugrid_edges(self.bl_max)
 
-    def clone(self, **kwargs):
+    def clone(self, **kwargs) -> Observation:
         """Create a clone of this instance, with arbitrary changes to parameters."""
         return attr.evolve(self, **kwargs)
 

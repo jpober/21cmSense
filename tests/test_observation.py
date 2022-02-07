@@ -10,20 +10,21 @@ from py21cmsense import GaussianBeam, Observation, Observatory
 
 @pytest.fixture(scope="module")
 def bm():
-    return GaussianBeam(150.0, dish_size=14)
+    return GaussianBeam(150.0 * units.MHz, dish_size=14 * units.m)
 
 
 @pytest.fixture(scope="module")
 def observatory(bm):
     return Observatory(
-        antpos=np.array([[0, 0, 0], [14, 0, 0], [28, 0, 0], [70, 0, 0]]), beam=bm
+        antpos=np.array([[0, 0, 0], [14, 0, 0], [28, 0, 0], [70, 0, 0]]) * units.m,
+        beam=bm,
     )
 
 
 def test_units(observatory):
     obs = Observation(observatory=observatory)
 
-    assert obs.hours_per_day.unit == units.hour
+    assert obs.time_per_day.unit == units.hour
     assert obs.obs_duration.to("min").unit == units.min
     assert obs.integration_time.to("s").unit == units.s
     assert obs.bandwidth.to("MHz").unit == units.MHz

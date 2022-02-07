@@ -7,11 +7,17 @@ of antennae centred at zero.
 import numpy as np
 from astropy import constants as cnst
 from astropy import units as un
+from typing import Optional
 
-from . import _utils as ut
+from . import types as tp
+from . import yaml
 
 
-def hera(hex_num, separation, dl, units="m") -> np.ndarray:
+@yaml.yaml_func()
+@un.quantity_input(equivalencies=tp.time_as_distance)
+def hera(
+    hex_num, separation: tp.Length = 14 * un.m, dl: Optional[tp.Length] = None
+) -> tp.Meters:
     """
     Produce a simple regular hexagonal array.
 
@@ -19,42 +25,35 @@ def hera(hex_num, separation, dl, units="m") -> np.ndarray:
 
     Parameters
     ----------
-    hex_num : int
+    hex_num
         Number of antennas per side of the hexagon
-    separation : float or Quantity
-        The distance between antennas along a side. If float, assumed to be in `units`.
+    separation
+        The distance between antennas along a side.
         May have units of distance or time, the latter interpreted as a distance travelled
         by light.
-    dl : float or Quantity
-        The distance between rows of antennas. If float, assumed to be in `units`.
+    dl
+        The distance between rows of antennas.
         May have units of distance or time, the latter interpreted as a distance travelled
-        by light.
-    units : str or astropy.units.Unit
-        The units of `l` and `dl`. If `l` and `dl` are astropy Quantities, this is ignored.
-        Must be in a format recognized by astropy.
+        by light. If not provided, assume sin(60) * separation (i.e. equilateral triangles).
 
     Returns
     -------
     antpos
         A 2D array of antenna positions, shape ``(Nants, 3)``.
     """
-    separation = ut.apply_or_convert_unit(units)(separation)
-    dl = ut.apply_or_convert_unit(units)(dl)
+    if dl is None:
+        dl = np.sin(60) * separation
 
-    try:
-        separation = separation.to("m")
-        dl = dl.to("m")
-    except un.UnitConversionError:
-        separation = (separation * cnst.c).to("m")
-        dl = (dl * cnst.c).to("m")
+    separation = separation.to_value("m")
+    dl = dl.to_value("m")
 
     antpos = []
     cen_z = 0
     for row in np.arange(hex_num):
         for cen_x in np.arange((2 * hex_num - 1) - row):
             dx = row / 2.0
-            antpos.append(((cen_x + dx) * separation.value, row * dl.value, cen_z))
+            antpos.append(((cen_x + dx) * separation, row * dl, cen_z))
             if row != 0:
-                antpos.append(((cen_x + dx) * separation.value, -row * dl.value, cen_z))
+                antpos.append(((cen_x + dx) * separation, -row * dl, cen_z))
 
     return np.array(antpos) * un.m

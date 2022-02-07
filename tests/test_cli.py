@@ -2,9 +2,10 @@ import pytest
 
 import glob
 import traceback
-import yaml
+from astropy.io.misc import yaml
 from click.testing import CliRunner
 from os import path
+from yaml import dump
 
 from py21cmsense import cli
 
@@ -18,22 +19,14 @@ def runner():
 
 
 @pytest.fixture(scope="module")
-def observatory_config(tmpdirec):
-    with open(path.join(example_configs, "observatory_hera.yml"), "r") as fl:
-        observatory = yaml.load(fl, Loader=yaml.FullLoader)
-
-    observatory["antpos"]["hex_num"] = 3  # Just to make the test faster
-
-    with open(path.join(tmpdirec, "observatory.yml"), "w") as fl:
-        yaml.dump(observatory, fl)
-
-    return path.join(tmpdirec, "observatory.yml")
+def observatory_config() -> str:
+    return path.join(example_configs, "observatory_hera.yml")
 
 
 @pytest.fixture(scope="module")
 def observation_config(tmpdirec, observatory_config):
-    with open(path.join(example_configs, "observation_hera.yml"), "r") as fl:
-        observation = yaml.load(fl, Loader=yaml.FullLoader)
+    with open(path.join(example_configs, "observation_hera.yml")) as fl:
+        observation = yaml.load(fl)
 
     observation["observatory"] = observatory_config
 
@@ -45,8 +38,8 @@ def observation_config(tmpdirec, observatory_config):
 
 @pytest.fixture(scope="module")
 def sensitivity_config(tmpdirec, observation_config):
-    with open(path.join(example_configs, "sensitivity_hera.yml"), "r") as fl:
-        sensitivity = yaml.load(fl, Loader=yaml.FullLoader)
+    with open(path.join(example_configs, "sensitivity_hera.yml")) as fl:
+        sensitivity = yaml.load(fl)
 
     sensitivity["observation"] = observation_config
 
@@ -58,16 +51,20 @@ def sensitivity_config(tmpdirec, observation_config):
 
 @pytest.fixture(scope="module")
 def sensitivity_config_defined_p21(tmpdirec, observation_config, sensitivity_config):
-    with open(sensitivity_config, "r") as fl:
-        sensitivity = yaml.load(fl, Loader=yaml.FullLoader)
+    with open(sensitivity_config) as fl:
+        sensitivity = yaml.load(fl)
 
-    sensitivity["observation"] = observation_config
-    sensitivity["p21"] = path.join(
+    pfile = path.join(
         example_configs,
         "../py21cmsense/data/ps_no_halos_nf0.521457_z9.50_useTs0_zetaX-1.0e+00_200_400Mpc_v2",
     )
+
+    sensitivity["observation"] = observation_config
+
     with open(path.join(tmpdirec, "sensitivity_with_p21.yml"), "w") as fl:
-        yaml.dump(sensitivity, fl)
+        dump(sensitivity, fl)
+
+        fl.write(f"p21: !txt {pfile}\n")
 
     return path.join(tmpdirec, "sensitivity_with_p21.yml")
 
@@ -123,6 +120,8 @@ def test_both(runner, tmpdirec, observation_config, sensitivity_config):
             sensitivity_config,
             "--array-file",
             path.join(tmpdirec, "arrayfile.pkl"),
+            "--plot-title",
+            "MYTITLE",
         ],
     )
     if output.exception:

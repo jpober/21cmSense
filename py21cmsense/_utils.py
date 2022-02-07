@@ -9,48 +9,6 @@ from pyuvdata import utils as uvutils
 from . import config
 
 
-class UnitError(ValueError):
-    """An error pertaining to having incorrect units."""
-
-    pass
-
-
-def apply_or_convert_unit(unit, allow_unitless=False, array=False):
-    """Return a function that converts numbers to quantities.
-
-    The returned function also converts input quantities to specified units.
-
-    Parameters
-    ----------
-    unit : astropy unit or str
-
-    Returns
-    -------
-    callable: function which converts its argument to a quantity
-    """
-
-    def converter(quantity):
-        if array:
-            quantity = np.array(quantity)
-
-        if hasattr(quantity, "unit"):
-            return quantity.to(unit)
-        else:
-            if allow_unitless:
-                return quantity
-
-            if not config.ALLOW_DEFAULT_UNITS:
-                raise UnitError(
-                    "This value is required to have units convertible to {}".format(
-                        unit
-                    )
-                )
-
-            return un.Quantity(quantity, unit)
-
-    return converter
-
-
 def between(xmin, xmax):
     """Return an attrs validation function that checks a number is within bounds."""
 
@@ -154,7 +112,8 @@ def phase(jd, ra, dec, telescope_location, uvws0):
     return uvws[:, r_inds, :]
 
 
-def phase_past_zenith(time_past_zenith, uvws0, latitude):
+@un.quantity_input
+def phase_past_zenith(time_past_zenith: un.day, uvws0: np.ndarray, latitude: un.rad):
     """Compute UVWs phased to a point rotated from zenith by a certain amount of time.
 
     This function specifies a longitude and time of observation without loss of
@@ -163,12 +122,12 @@ def phase_past_zenith(time_past_zenith, uvws0, latitude):
 
     Parameters
     ----------
-    time_past_zenith : float or Quantity
+    time_past_zenith
         The time passed since the point was at zenith. If float, assumed to be in units
         of days.
     uvws0 : array
         The UVWs when phased to zenith.
-    latitude : float or Quantity
+    latitude
         The latitude of the center of the array, in radians.
 
     Returns
@@ -178,8 +137,6 @@ def phase_past_zenith(time_past_zenith, uvws0, latitude):
     """
     # Generate ra/dec of zenith at time in the phase_frame coordinate system
     # to use for phasing
-    time_past_zenith = apply_or_convert_unit("day")(time_past_zenith)
-    latitude = apply_or_convert_unit("rad")(latitude)
     telescope_location = EarthLocation.from_geodetic(lon=0, lat=latitude)
 
     # JD is arbitrary

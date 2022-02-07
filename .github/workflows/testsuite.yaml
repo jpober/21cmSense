@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: [3.7, 3.8, 3.9]
+        python-version: [3.9, "3.10"]
     steps:
       - uses: actions/checkout@master
         with:
@@ -37,9 +37,13 @@ jobs:
           conda info
           python --version
 
-      - name: Run Tests
+      - name: Install Test Deps
         run: |
           pip install .[test]
+          conda list
+
+      - name: Run Tests
+        run: |
           python -m pytest --cov=py21cmsense --cov-config=.coveragerc --cov-report xml:./coverage.xml --junitxml=test-reports/xunit.xml
 
       - uses: codecov/codecov-action@v2

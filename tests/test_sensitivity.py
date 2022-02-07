@@ -4,17 +4,19 @@ import numpy as np
 from astropy import units
 
 from py21cmsense import GaussianBeam, Observation, Observatory, PowerSpectrum
+from py21cmsense.sensitivity import Sensitivity, _kconverter
 
 
 @pytest.fixture(scope="module")
 def bm():
-    return GaussianBeam(150.0, dish_size=14)
+    return GaussianBeam(150.0 * units.MHz, dish_size=14 * units.m)
 
 
 @pytest.fixture(scope="module")
 def observatory(bm):
     return Observatory(
-        antpos=np.array([[0, 0, 0], [14, 0, 0], [28, 0, 0], [70, 0, 0]]), beam=bm
+        antpos=np.array([[0, 0, 0], [14, 0, 0], [28, 0, 0], [70, 0, 0]]) * units.m,
+        beam=bm,
     )
 
 
@@ -33,7 +35,7 @@ def test_units(observation):
     assert ps.k_min.to("littleh/Mpc").unit == units.littleh / units.Mpc
     assert ps.k_max.to("littleh/Mpc").unit == units.littleh / units.Mpc
     assert ps.k1d.to("littleh/Mpc").unit == units.littleh / units.Mpc
-    assert ps.power_normalisation(0.1).unit == units.dimensionless_unscaled
+    assert isinstance(ps.power_normalisation(0.1 * units.littleh / units.Mpc), float)
     assert ps.horizon_limit(10).to("littleh/Mpc").unit == units.littleh / units.Mpc
 
     ps = PowerSpectrum(
@@ -99,3 +101,16 @@ def test_write_to_custom_filename(observation, tmp_path):
     ps = PowerSpectrum(observation=observation)
     out2 = ps.write(filename=out)
     assert out2 == out
+
+
+def test_kconverter():
+    with pytest.raises(ValueError, match="no units supplied!"):
+        _kconverter(1)
+
+
+def test_load_yaml_bad():
+    with pytest.raises(
+        ValueError,
+        match="yaml_file must be a string filepath or a raw dict from such a file",
+    ):
+        Sensitivity.from_yaml(1)
