@@ -25,7 +25,7 @@ def observatory_config() -> str:
 
 @pytest.fixture(scope="module")
 def observation_config(tmpdirec, observatory_config):
-    with open(path.join(example_configs, "observation_hera.yml"), "r") as fl:
+    with open(path.join(example_configs, "observation_hera.yml")) as fl:
         observation = yaml.load(fl)
 
     observation["observatory"] = observatory_config
@@ -38,7 +38,7 @@ def observation_config(tmpdirec, observatory_config):
 
 @pytest.fixture(scope="module")
 def sensitivity_config(tmpdirec, observation_config):
-    with open(path.join(example_configs, "sensitivity_hera.yml"), "r") as fl:
+    with open(path.join(example_configs, "sensitivity_hera.yml")) as fl:
         sensitivity = yaml.load(fl)
 
     sensitivity["observation"] = observation_config
@@ -51,7 +51,7 @@ def sensitivity_config(tmpdirec, observation_config):
 
 @pytest.fixture(scope="module")
 def sensitivity_config_defined_p21(tmpdirec, observation_config, sensitivity_config):
-    with open(sensitivity_config, "r") as fl:
+    with open(sensitivity_config) as fl:
         sensitivity = yaml.load(fl)
 
     pfile = path.join(

@@ -31,7 +31,7 @@ def data_loader(tag=None):
         def wrapper(data):
             try:
                 return fnc(data)
-            except IOError:
+            except OSError:
                 raise
             except Exception as e:
                 raise LoadError(str(e))

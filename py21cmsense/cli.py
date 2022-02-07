@@ -1,5 +1,4 @@
 """CLI routines for 21cmSense."""
-from __future__ import division, print_function
 
 import click
 import logging
