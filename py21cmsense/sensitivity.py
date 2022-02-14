@@ -50,7 +50,7 @@ _K21_DEFAULT, _D21_DEFAULT = np.genfromtxt(
 ).T[:2]
 
 _K21_DEFAULT = _kconverter(_K21_DEFAULT, allow_unitless=True)
-_D21_DEFAULT <<= un.mK ** 2
+_D21_DEFAULT <<= un.mK**2
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +149,7 @@ class PowerSpectrum(Sensitivity):
         validator=tp.vld_unit(littleh / un.Mpc, with_H0(config.COSMO.H0)),
         converter=_kconverter,
     )
-    delta_21: tp.Delta = attr.ib(_D21_DEFAULT, validator=(tp.vld_unit(un.mK ** 2)))
+    delta_21: tp.Delta = attr.ib(_D21_DEFAULT, validator=(tp.vld_unit(un.mK**2)))
 
     @classmethod
     def from_yaml(cls, yaml_file) -> Sensitivity:
@@ -164,7 +164,7 @@ class PowerSpectrum(Sensitivity):
         p21 = data.pop("p21", None)
         if p21 is not None:
             data["k_21"] = p21[:, 0] << 1 / un.Mpc
-            data["delta_21"] = p21[:, 1] << un.mK ** 2
+            data["delta_21"] = p21[:, 1] << un.mK**2
 
         if isinstance(yaml_file, str):
             obsfile = path.join(path.dirname(yaml_file), data.pop("observation"))
@@ -189,10 +189,10 @@ class PowerSpectrum(Sensitivity):
         """An interpolation function defining the cosmological power spectrum."""
         fnc = interpolate.interp1d(
             self.k_21.to_value(littleh / un.Mpc),
-            self.delta_21.to_value(un.mK ** 2),
+            self.delta_21.to_value(un.mK**2),
             kind="linear",
         )
-        return lambda k: fnc(k) * un.mK ** 2
+        return lambda k: fnc(k) * un.mK**2
 
     @cached_property
     def k_min(self) -> tp.Wavenumber:
@@ -228,7 +228,7 @@ class PowerSpectrum(Sensitivity):
         return np.arange(mn.value, self.k_max.value, delta.value) * delta.unit
 
     @cached_property
-    def X2Y(self) -> un.Quantity[un.Mpc ** 3 / littleh ** 3 / un.steradian / un.GHz]:
+    def X2Y(self) -> un.Quantity[un.Mpc**3 / littleh**3 / un.steradian / un.GHz]:
         """Cosmological scaling factor X^2*Y (eg. Parsons 2012)."""
         return conv.X2Y(self.observation.redshift)
 
@@ -256,22 +256,22 @@ class PowerSpectrum(Sensitivity):
             self.X2Y
             * self.observation.observatory.beam.b_eff
             * self.observation.bandwidth
-            * k ** 3
-            / (2 * np.pi ** 2)
+            * k**3
+            / (2 * np.pi**2)
         ).to_value("")
 
     def thermal_noise(
         self, k_par: tp.Wavenumber, k_perp: tp.Wavenumber, trms: tp.Temperature
     ) -> tp.Delta:
         """Thermal noise contribution at particular k mode."""
-        k = np.sqrt(k_par ** 2 + k_perp ** 2)
+        k = np.sqrt(k_par**2 + k_perp**2)
         scalar = self.power_normalisation(k)
         return scalar * trms.to("mK") ** 2
 
     def sample_noise(self, k_par: tp.Wavenumber, k_perp: tp.Wavenumber) -> tp.Delta:
         """Sample variance contribution at a particular k mode."""
-        k = np.sqrt(k_par ** 2 + k_perp ** 2)
-        vals = np.full(k.size, np.inf) * un.mK ** 2
+        k = np.sqrt(k_par**2 + k_perp**2)
+        vals = np.full(k.size, np.inf) * un.mK**2
         good_ks = np.logical_and(k >= self.k_min, k <= self.k_max)
         vals[good_ks] = self.p21(k[good_ks])
         return vals
@@ -279,7 +279,7 @@ class PowerSpectrum(Sensitivity):
     @cached_property
     def _nsamples_2d(
         self,
-    ) -> dict[str, dict[tp.Wavenumber, un.Quantity[1 / un.mK ** 4]]]:
+    ) -> dict[str, dict[tp.Wavenumber, un.Quantity[1 / un.mK**4]]]:
         """Mid-way product specifying thermal and sample variance over the 2D grid."""
         # set up blank arrays/dictionaries
         sense = {"sample": {}, "thermal": {}, "both": {}}
@@ -299,20 +299,20 @@ class PowerSpectrum(Sensitivity):
             if np.isinf(trms):
                 continue
 
-            umag = np.sqrt(u ** 2 + v ** 2)
+            umag = np.sqrt(u**2 + v**2)
             k_perp = umag * conv.dk_du(self.observation.redshift)
 
             hor = self.horizon_limit(umag)
 
             if k_perp not in sense["thermal"]:
                 sense["thermal"][k_perp] = (
-                    np.zeros(len(self.observation.kparallel)) / un.mK ** 4
+                    np.zeros(len(self.observation.kparallel)) / un.mK**4
                 )
                 sense["sample"][k_perp] = (
-                    np.zeros(len(self.observation.kparallel)) / un.mK ** 4
+                    np.zeros(len(self.observation.kparallel)) / un.mK**4
                 )
                 sense["both"][k_perp] = (
-                    np.zeros(len(self.observation.kparallel)) / un.mK ** 4
+                    np.zeros(len(self.observation.kparallel)) / un.mK**4
                 )
 
             # Exclude parallel modes dominated by foregrounds
@@ -328,8 +328,8 @@ class PowerSpectrum(Sensitivity):
             thermal = self.thermal_noise(kpars, k_perp, trms)
             sample = self.sample_noise(kpars, k_perp)
 
-            t = 1.0 / thermal ** 2
-            s = 1.0 / sample ** 2
+            t = 1.0 / thermal**2
+            s = 1.0 / sample**2
             ts = 1.0 / (thermal + sample) ** 2
             sense["thermal"][k_perp][inds] += t
             sense["thermal"][k_perp][-inds] += t
@@ -377,7 +377,7 @@ class PowerSpectrum(Sensitivity):
         final_sense = {}
         for k_perp in sense.keys():
             mask = sense[k_perp] > 0
-            final_sense[k_perp] = np.inf * np.ones(len(mask)) * un.mK ** 2
+            final_sense[k_perp] = np.inf * np.ones(len(mask)) * un.mK**2
             final_sense[k_perp][mask] = sense[k_perp][mask] ** -0.5 / np.sqrt(
                 self.observation.n_lst_bins
             )
@@ -409,7 +409,7 @@ class PowerSpectrum(Sensitivity):
 
     def _average_sense_to_1d(self, sense: dict[tp.Wavenumber, tp.Delta]) -> tp.Delta:
         """Bin 2D sensitivity down to 1D."""
-        sense1d_inv = np.zeros(len(self.k1d)) / un.mK ** 4
+        sense1d_inv = np.zeros(len(self.k1d)) / un.mK**4
 
         for k_perp in tqdm.tqdm(
             sense.keys(),
@@ -417,14 +417,14 @@ class PowerSpectrum(Sensitivity):
             unit="kperp-bins",
             disable=not config.PROGRESS,
         ):
-            k = np.sqrt(self.observation.kparallel ** 2 + k_perp ** 2)
+            k = np.sqrt(self.observation.kparallel**2 + k_perp**2)
             good_ks = np.logical_and(self.k_min <= k, k <= self.k_max)
             sense1d_inv[ut.find_nearest(self.k1d, k[good_ks])] += (
                 1.0 / sense[k_perp][good_ks] ** 2
             )
 
         # invert errors and take square root again for final answer
-        sense1d = np.ones(sense1d_inv.shape) * un.mK ** 2 * np.inf
+        sense1d = np.ones(sense1d_inv.shape) * un.mK**2 * np.inf
         mask = sense1d_inv > 0
         sense1d[mask] = 1 / np.sqrt(sense1d_inv[mask])
         return sense1d

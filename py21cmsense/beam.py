@@ -52,7 +52,7 @@ class PrimaryBeam(metaclass=ABCMeta):
 
         Defined as :math:`(\int B(\Omega) d \Omega)^2 / \int B^2 d\Omega`.
         """
-        return self.area ** 2 / self.sq_area
+        return self.area**2 / self.sq_area
 
     @abstractproperty
     def uv_resolution(self) -> un.Quantity[1 / un.radians]:
@@ -98,7 +98,7 @@ class GaussianBeam(PrimaryBeam):
     @property
     def area(self) -> un.Quantity[un.steradian]:
         """The integral of the beam over angle, in sr."""
-        return 1.13 * self.fwhm ** 2
+        return 1.13 * self.fwhm**2
 
     @property
     def width(self) -> un.Quantity[un.radian]:

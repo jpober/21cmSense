@@ -30,7 +30,7 @@ def test_units(observation):
 
     assert ps.horizon_buffer.to("littleh/Mpc").unit == units.littleh / units.Mpc
     assert ps.k_21.to("littleh/Mpc").unit == units.littleh / units.Mpc
-    assert ps.delta_21.to("mK^2").unit == units.mK ** 2
+    assert ps.delta_21.to("mK^2").unit == units.mK**2
     assert callable(ps.p21)
     assert ps.k_min.to("littleh/Mpc").unit == units.littleh / units.Mpc
     assert ps.k_max.to("littleh/Mpc").unit == units.littleh / units.Mpc
@@ -41,12 +41,12 @@ def test_units(observation):
     ps = PowerSpectrum(
         observation=observation,
         k_21=np.array([1, 2, 3]) * units.littleh / units.Mpc,
-        delta_21=np.array([1, 2, 3]) * units.mK ** 2,
+        delta_21=np.array([1, 2, 3]) * units.mK**2,
     )
     ps2 = PowerSpectrum(
         observation=observation,
         k_21=np.array([1, 2, 3]) / units.Mpc,
-        delta_21=np.array([1, 2, 3]) * units.mK ** 2,
+        delta_21=np.array([1, 2, 3]) * units.mK**2,
     )
 
     assert np.all(ps.k_21 < ps2.k_21)
@@ -78,7 +78,7 @@ def test_limited_k_range(observation, caplog):
     ps = PowerSpectrum(
         observation=observation,
         k_21=np.array([1, 2, 3]) * units.littleh / units.Mpc,
-        delta_21=np.array([1, 2, 3]) * units.mK ** 2,
+        delta_21=np.array([1, 2, 3]) * units.mK**2,
     )
 
     ps.k1d
