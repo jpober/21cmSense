@@ -128,7 +128,7 @@ def calc_sense(
     # calculated the uv_coverage, hopefully.
     if array_file is not None:
         with open(configfile) as fl:
-            cfg = yaml.load(fl, Loader=yaml.FullLoader)
+            cfg = yaml.load(fl, Loader=yaml.SafeLoader)
         cfg["observation"] = path.abspath(array_file)
 
         configfile = tempfile.mktemp()

@@ -8,6 +8,7 @@ Unreleased
 Fixed
 -----
 * Bug in ``dL_df`` (missing square).
+* Use ``yaml.SafeLoader`` instead of ``yaml.FullyLoader``.
 
 Changed
 -------
