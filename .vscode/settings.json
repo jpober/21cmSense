@@ -1,0 +1,6 @@
+{
+    "esbonio.server.enabled": false,
+    "restructuredtext.languageServer.disabled": true,
+    "restructuredtext.confPath": "${workspaceFolder}/docs",
+    "esbonio.sphinx.confDir": "/home/steven/Documents/Projects/radio/EOR/21cmSense/docs"
+}

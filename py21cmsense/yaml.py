@@ -8,6 +8,8 @@ from functools import wraps
 
 _DATA_LOADERS = {}
 
+_YAML_LOADERS = (yaml.FullLoader, yaml.SafeLoader, yaml.Loader, AstropyLoader)
+
 
 class LoadError(IOError):
     """Error raised on trying to load data from YAML files."""
@@ -39,9 +41,8 @@ def data_loader(tag=None):
         def yaml_fnc(loader, node):
             return wrapper(node.value)
 
-        yaml.add_constructor(f"!{new_tag}", yaml_fnc, Loader=yaml.FullLoader)
-        yaml.add_constructor(f"!{new_tag}", yaml_fnc, Loader=yaml.Loader)
-        yaml.add_constructor(f"!{new_tag}", yaml_fnc, Loader=AstropyLoader)
+        for loader in _YAML_LOADERS:
+            yaml.add_constructor(f"!{new_tag}", yaml_fnc, Loader=loader)
 
         return wrapper
 
@@ -85,9 +86,8 @@ def yaml_func(tag=None):
             kwargs = loader.construct_mapping(node)
             return fnc(**kwargs)
 
-        yaml.add_constructor(f"!{new_tag}", yaml_fnc, Loader=yaml.FullLoader)
-        yaml.add_constructor(f"!{new_tag}", yaml_fnc, Loader=yaml.Loader)
-        yaml.add_constructor(f"!{new_tag}", yaml_fnc, Loader=AstropyLoader)
+        for loader in _YAML_LOADERS:
+            yaml.add_constructor(f"!{new_tag}", yaml_fnc, Loader=loader)
 
         return fnc
 
