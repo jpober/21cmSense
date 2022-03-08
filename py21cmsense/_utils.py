@@ -35,7 +35,7 @@ def find_nearest(array, value):
 
 def trunc(x, ndecimals=0):
     """Truncate a floating point number to a given number of decimals."""
-    decade = 10 ** ndecimals
+    decade = 10**ndecimals
     return np.trunc(x * decade) / decade
 
 

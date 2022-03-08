@@ -24,7 +24,7 @@ Frequency = un.Quantity["frequency"]
 Temperature = un.Quantity["temperature"]
 TempSquared = un.Quantity[un.get_physical_type("temperature") ** 2]
 Wavenumber = un.Quantity[littleh / un.Mpc]
-Delta = un.Quantity[un.mK ** 2]
+Delta = un.Quantity[un.mK**2]
 
 time_as_distance = [
     (

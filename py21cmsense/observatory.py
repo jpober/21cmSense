@@ -81,8 +81,8 @@ class Observatory:
         sq_len = np.sum(np.square(self._antpos), axis=1)
         antpos = self._antpos[
             np.logical_and(
-                sq_len >= self.min_antpos ** 2,
-                sq_len < self.max_antpos ** 2,
+                sq_len >= self.min_antpos**2,
+                sq_len < self.max_antpos**2,
             )
         ]
 
@@ -148,7 +148,7 @@ class Observatory:
         max_antpos = data.pop("max_antpos", np.inf)
         antpos = data.pop("antpos")
         _n = len(antpos)
-        antpos = antpos[np.sum(np.square(antpos), axis=1) < max_antpos ** 2]
+        antpos = antpos[np.sum(np.square(antpos), axis=1) < max_antpos**2]
 
         if max_antpos < np.inf:
             logger.info(
@@ -521,4 +521,4 @@ class Observatory:
         See :func:`grid_baselines` for parameter details.
         """
         grid = self.grid_baselines(**kwargs)
-        return np.sqrt(np.sum(grid ** 2, axis=0))
+        return np.sqrt(np.sum(grid**2, axis=0))
