@@ -540,7 +540,7 @@ class PowerSpectrum(Sensitivity):
                 fl[k] = v
                 fl[k.replace("noise", "snr")] = self.delta_squared / v
 
-            fl["k"] = self.k1d.to("1/Mpc", un.with_H0(config.COSMO.H0)).value
+            fl["k"] = self.k1d.to("1/Mpc", with_H0(config.COSMO.H0)).value
             fl["delta_squared"] = self.delta_squared
 
             fl.attrs["k_min"] = self.k_min

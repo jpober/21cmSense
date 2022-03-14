@@ -1,7 +1,17 @@
-antpos: mwa_phase2_compact_antpos.txt
+antpos: !astropy.units.Quantity
+    unit: !astropy.units.Unit {unit: m}
+    value: !txt mwa_phase2_compact_antpos.txt
 beam:
   class: GaussianBeam
-  frequency: 155    # By default, in MHz
-  dish_size: 4.0    # By default, in m
-latitude: -0.4660608447416767  # In radians
-Trcv: 100000
+  frequency: !astropy.units.Quantity
+    unit: !astropy.units.Unit {unit: MHz}
+    value: 150
+  dish_size: !astropy.units.Quantity
+    unit: !astropy.units.Unit {unit: m}
+    value: 4.0
+latitude: !astropy.units.Quantity
+  unit: !astropy.units.Unit {unit: rad}
+  value: -0.4660608447416767  # In radians
+Trcv: !astropy.units.Quantity
+  unit: !astropy.units.Unit {unit: mK}
+  value: 100000.0

@@ -5,7 +5,6 @@ a single array of shape (Nant, 3) with units of meters, corresponding to (x,y,z)
 of antennae centred at zero.
 """
 import numpy as np
-from astropy import constants as cnst
 from astropy import units as un
 from typing import Optional
 

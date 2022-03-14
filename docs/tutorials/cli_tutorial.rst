@@ -12,7 +12,8 @@ files::
 
 
 These are all the configuration and data files we will need to perform the sensitivity
-estimate.
+estimate. You can obtain them
+`here <https://github.com/steven-murray/21cmSense/tree/main/docs/tutorials/data>`_.
 
 Antenna Positions
 ~~~~~~~~~~~~~~~~~
@@ -45,24 +46,35 @@ Observatory
 ~~~~~~~~~~~
 The observatory configuration specifies attributes of your observatory, like the
 antenna positions and the beam. All possible parameters are described
-`here <>https://21cmsense.readthedocs.io/en/latest/reference/_autosummary/observatory/py21cmsense.observatory.Observatory.html#py21cmsense.observatory.Observatory>`_
+`here <https://21cmsense.readthedocs.io/en/latest/reference/_autosummary/observatory/py21cmsense.observatory.Observatory.html#py21cmsense.observatory.Observatory>`_
 Our observatory configuration looks like::
 
     $ cat observatory_mwa.yml
-    antpos: mwa_phase2_compact_antpos.txt
+    antpos: !txt mwa_phase2_compact_antpos.txt
     beam:
-      class: GaussianBeam
-      frequency: 155    # By default, in MHz
-      dish_size: 4.0    # By default, in m
-    latitude: -0.4660608447416767  # In radians
-    Trcv: 100000
+        class: GaussianBeam
+        frequency: !astropy.units.Quantity
+            unit: !astropy.units.Unit {unit: MHz}
+            value: 150
+        dish_size: !astropy.units.Quantity
+            unit: !astropy.units.Unit {unit: m}
+            value: 4.0
+    latitude: !astropy.units.Quantity
+        unit: !astropy.units.Unit {unit: rad}
+        value: -0.4660608447416767  # In radians
+    Trcv: !astropy.units.Quantity
+        unit: !astropy.units.Unit {unit: mK}
+        value: 100000.0
+
 
 Notice that ``antpos`` just points to our positions file. Its location is assumed to be
 relative to the location of the configuration file, unless it is an absolute path.
+The YAML-tag "!txt" tells it to load the file as a standard ASCII txt file.
 
 The beam is specified by a dictionary. The "class" tells it what kind of beam to use
 (at this point, only the ``GaussianBeam`` is provided), while the frequency is specified
-in MHz and the ``dish_size`` in metres.
+in MHz and the ``dish_size`` in metres. Note these are set using the standard astropy
+YAML-tags to create units. You *must* specify units for all quantities.
 
 In ``21cmSense``, all calculations are performed at a single frequency -- expected to be
 the central frequency of the observation. It is expected that the bandwidth (to be
@@ -90,15 +102,24 @@ Here's what the config looks like::
 
     $ cat observation_mwa.yml
     observatory: observatory_mwa.yml
-    integration_time: 60.0
-    hours_per_day: 7
+    integration_time: !astropy.units.Quantity
+        unit: !astropy.units.Unit {unit: s}
+        value: 60.0
+    time_per_day: !astropy.units.Quantity
+        unit: !astropy.units.Unit {unit: hour}
+        value: 7
     n_days: 180
     n_channels: 100
-    bandwidth: 10
+    bandwidth: !astropy.units.Quantity
+        unit: !astropy.units.Unit {unit: MHz}
+        value: 10
     coherent: true
-    bl_max: 100.0
+    bl_max: !astropy.units.Quantity
+        unit: !astropy.units.Unit {unit: m}
+        value: 100.0
 
-The first thing to note here is that we're specifying the observatory, that we looked
+
+The first thing to note here is that we're specifying the observatory that we looked
 at in the previous section. In fact, the observatory could have been fully specified
 directly in this file, by making it a dictionary (with all the ``key: value`` pairs from
 our ``observatory_mwa.yml`` file).
@@ -114,7 +135,7 @@ the FWHM of the beam. This is an approximation. You can set the length of the LS
 directly in the ``observation.yml`` by setting ``observation_duration`` (in minutes).
 The interpretation is that within this time-frame, the sky has not changed significantly,
 and that if a baseline stays in the same UV cell (remember, its UV co-ordinate changes
-with time), it should be averaged coherently. The ``hours_per_day`` then effectively
+with time), it should be averaged coherently. The ``time_per_day`` then effectively
 gives the number of such LST-bins that are observed during the night. Different LST-bins
 are averaged *incoherently*, even in the same UV cell. Finally, ``n_days`` gives the
 total number of days for which these kinds of observations are averaged. Each day,
@@ -181,8 +202,11 @@ The final configuration file required is ``sensitivity_mwa.yml``. Let's look at 
 
     $ cat sensitivity_mwa.yml
     observation: observation_hera.yml
-    horizon_buffer: 0.1
-    p21: ps_EoS_z9.24.txt
+    horizon_buffer: !astropy.units.Quantity
+        unit: !astropy.units.Unit {unit: 1/Mpc}
+        value: 0.1
+    p21: !txt ps_EoS_z9.24.txt
+
 
 Here the ``observation`` is of course the previously-specified file.
 Again, we could have specified the observation directly in this file, but it helps to
@@ -215,14 +239,17 @@ closest redshift to our observation at 155 MHz::
 Now we run the sensitivity analysis::
 
     $ sense calc-sense sensitivity_mwa.yml --array-file drift_blmin0_blmax100_0.155GHz_arrayfile.pkl
-    Getting Thermal Variance
-    calculating 2D sensitivity: 100%|███████████████████████████████████████████████| 977/977 [01:24<00:00, 12.00uv-bins/s]
-    averaging to 1D: 100%|████████████████████████████████████████████████████████| 239/239 [00:06<00:00, 34.89kpar bins/s]
-    Getting Sample Variance
-    averaging to 1D: 100%|████████████████████████████████████████████████████████| 239/239 [00:06<00:00, 34.16kpar bins/s]
-    Getting Combined Variance
-    averaging to 1D: 100%|████████████████████████████████████████████████████████| 239/239 [00:06<00:00, 34.41kpar bins/s]
-    Significance of detection:  0.25866956282935566
+    [14:03:33] WARNING  The maximum k value is being restricted by the theoretical signal model. Losing ~23 bins.                                                                                     sensitivity.py:212
+               INFO     Used 76 bins between 0.05390475507505667 littleh / Mpc and 4.096761385704307 littleh / Mpc                                                                                            cli.py:139
+               INFO     Getting Thermal Variance                                                                                                                                                      sensitivity.py:367
+    calculating 2D sensitivity: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 978/978 [00:01<00:00, 555.91uv-bins/s]
+    averaging to 1D: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 249/249 [00:00<00:00, 5112.95kperp-bins/s]
+    [14:03:35] INFO     Getting Sample Variance                                                                                                                                                       sensitivity.py:370
+    averaging to 1D: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 249/249 [00:00<00:00, 5092.09kperp-bins/s]
+               INFO     Getting Combined Variance                                                                                                                                                     sensitivity.py:364
+    averaging to 1D: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 249/249 [00:00<00:00, 5136.87kperp-bins/s]
+               INFO     Writing sensitivies to 'moderate_150.000 MHz.h5'                                                                                                                              sensitivity.py:533
+               INFO     Significance of detection: 0.12369660966702764
 
 
 This command also outputs a file ``moderate_155.000 MHz.npz``, which contains the

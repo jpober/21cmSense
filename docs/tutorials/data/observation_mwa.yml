@@ -1,8 +1,16 @@
 observatory: observatory_mwa.yml
-integration_time: 60.0
-hours_per_day: 7
+integration_time: !astropy.units.Quantity
+  unit: !astropy.units.Unit {unit: s}
+  value: 60.0
+time_per_day: !astropy.units.Quantity
+  unit: !astropy.units.Unit {unit: hour}
+  value: 7
 n_days: 180
 n_channels: 100
-bandwidth: 10
+bandwidth: !astropy.units.Quantity
+  unit: !astropy.units.Unit {unit: MHz}
+  value: 10
 coherent: true
-bl_max: 100.0
+bl_max: !astropy.units.Quantity
+  unit: !astropy.units.Unit {unit: m}
+  value: 100.0

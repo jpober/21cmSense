@@ -5,7 +5,7 @@ import logging
 import os
 import pickle
 import tempfile
-import yaml
+from astropy.io.misc import yaml
 from os import path
 from pathlib import Path
 from rich.logging import RichHandler
@@ -128,7 +128,7 @@ def calc_sense(
     # calculated the uv_coverage, hopefully.
     if array_file is not None:
         with open(configfile) as fl:
-            cfg = yaml.load(fl, Loader=yaml.SafeLoader)
+            cfg = yaml.load(fl)
         cfg["observation"] = path.abspath(array_file)
 
         configfile = tempfile.mktemp()

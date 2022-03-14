@@ -20,7 +20,6 @@ from collections import defaultdict
 from pathlib import Path
 
 from . import _utils as ut
-from . import antpos as antpos_module
 from . import beam, config
 from . import types as tp
 
@@ -132,12 +131,13 @@ class Observatory:
             )
 
         # Mask out some antennas if a max_antpos is set in the YAML
-        max_antpos = data.pop("max_antpos", np.inf)
+        max_antpos = data.pop("max_antpos", np.inf * un.m)
         antpos = data.pop("antpos")
         _n = len(antpos)
+
         antpos = antpos[np.sum(np.square(antpos), axis=1) < max_antpos**2]
 
-        if max_antpos < np.inf:
+        if max_antpos < np.inf * un.m:
             logger.info(
                 f"Removed {_n - len(antpos)} antennas using given max_antpos={max_antpos} m."
             )
@@ -448,7 +448,8 @@ class Observatory:
         if np.isinf(bl_max):
             return self.longest_baseline
 
-        bl_max *= self.metres_to_wavelengths
+        # Note we don't do the conversion in-place!
+        bl_max = bl_max * self.metres_to_wavelengths
         return np.max(self.baseline_lengths[self.baseline_lengths <= bl_max])
 
     def ugrid_edges(self, bl_max: tp.Length = np.inf * un.m) -> np.ndarray:

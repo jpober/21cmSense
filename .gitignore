@@ -19,5 +19,5 @@ pip-wheel-metadata/
 coverage.xml
 *,cover
 .pytest_cache
-
+.vscode/
 *MHz.h5

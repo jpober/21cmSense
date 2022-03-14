@@ -1,3 +1,5 @@
 observation: observation_hera.yml
-horizon_buffer: 0.1
-p21: ps_EoS_z9.24.txt
+horizon_buffer: !astropy.units.Quantity
+    unit: !astropy.units.Unit {unit: 1/Mpc}
+    value: 0.1
+p21: !txt ps_EoS_z9.24.txt
