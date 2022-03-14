@@ -384,6 +384,68 @@ class PowerSpectrum(Sensitivity):
 
         return final_sense
 
+    def calculate_sensitivity_2d_grid(
+        self,
+        kperp_edges: tp.Wavenumber,
+        kpar_edges: tp.Wavenumber,
+        thermal: bool = True,
+        sample: bool = True,
+    ) -> tp.Delta:
+        """Calculate the 2D cylindrical sensitivity on a grid of kperp/kpar.
+
+        Parameters
+        ----------
+        kperp_edges
+            The edges of the bins in kperp.
+        kpar_edges
+            The edges of the bins in kpar.
+        """
+        sense2d_inv = np.zeros((len(kperp_edges) - 1, len(kpar_edges) - 1)) << (
+            1 / un.mK**4
+        )
+        sense = self.calculate_sensitivity_2d(thermal=thermal, sample=sample)
+
+        assert np.all(np.diff(kperp_edges) > 0)
+        assert np.all(np.diff(kpar_edges) > 0)
+
+        if np.sqrt(kpar_edges.min() ** 2 + kperp_edges.min() ** 2) < self.k_min:
+            logger.warning(
+                "The minimum kbin is being restricted by the theoretical model. Some values will be zero."
+            )
+        if np.sqrt(kpar_edges.max() ** 2 + kperp_edges.max() ** 2) > self.k_max:
+            logger.warning(
+                "The maximum kbin is being restricted by the theoretical model. Some values will be zero."
+            )
+
+        for k_perp in tqdm.tqdm(
+            sense.keys(),
+            desc="averaging to 2D grid",
+            unit="kperp-bins",
+            disable=not config.PROGRESS,
+        ):
+            if k_perp < kperp_edges[0] or k_perp >= kperp_edges[-1]:
+                continue
+
+            # Get the kperp bin it's in.
+            kperp_indx = np.where(k_perp >= kperp_edges)[0][-1]
+
+            k = np.sqrt(self.observation.kparallel**2 + k_perp**2)
+            good_ks = np.logical_and(self.k_min <= k, k <= self.k_max)
+
+            kpar_indx = np.digitize(k, kpar_edges) - 1
+            good_ks &= kpar_indx >= 0
+            good_ks &= kpar_indx < len(kpar_edges) - 1
+
+            sense2d_inv[kperp_indx][kpar_indx[good_ks]] += (
+                1.0 / sense[k_perp][good_ks] ** 2
+            )
+
+        # invert errors and take square root again for final answer
+        sense2d = np.ones(sense2d_inv.shape) * un.mK**2 * np.inf
+        mask = sense2d_inv > 0
+        sense2d[mask] = 1 / np.sqrt(sense2d_inv[mask])
+        return sense2d
+
     def horizon_limit(self, umag: float) -> tp.Wavenumber:
         """
         Calculate a horizon limit, with included buffer, if appropriate.
@@ -407,9 +469,13 @@ class PowerSpectrum(Sensitivity):
         elif self.foreground_model in ["optimistic"]:
             return horizon * np.sin(self.observation.observatory.beam.first_null / 2)
 
-    def _average_sense_to_1d(self, sense: dict[tp.Wavenumber, tp.Delta]) -> tp.Delta:
+    def _average_sense_to_1d(
+        self, sense: dict[tp.Wavenumber, tp.Delta], k1d: tp.Wavenumber | None = None
+    ) -> tp.Delta:
         """Bin 2D sensitivity down to 1D."""
         sense1d_inv = np.zeros(len(self.k1d)) / un.mK**4
+        if k1d is None:
+            k1d = self.k1d
 
         for k_perp in tqdm.tqdm(
             sense.keys(),
@@ -418,8 +484,12 @@ class PowerSpectrum(Sensitivity):
             disable=not config.PROGRESS,
         ):
             k = np.sqrt(self.observation.kparallel**2 + k_perp**2)
+
             good_ks = np.logical_and(self.k_min <= k, k <= self.k_max)
-            sense1d_inv[ut.find_nearest(self.k1d, k[good_ks])] += (
+            good_ks &= k >= k1d.min()
+            good_ks &= k < k1d.max()
+
+            sense1d_inv[ut.find_nearest(k1d, k[good_ks])] += (
                 1.0 / sense[k_perp][good_ks] ** 2
             )
 
@@ -449,6 +519,11 @@ class PowerSpectrum(Sensitivity):
         """
         sense = self.calculate_sensitivity_2d(thermal=thermal, sample=sample)
         return self._average_sense_to_1d(sense)
+
+    def calculate_sensitivity_1d_binned(self, k: tp.Wavenumber, **kwargs):
+        """Calculate the 1D sensitivity at arbitrary k-bins."""
+        sense2d = self.calculate_sensitivity_2d(**kwargs)
+        return self._average_sense_to_1d(sense2d, k1d=k)
 
     @property
     def delta_squared(self) -> tp.Delta:

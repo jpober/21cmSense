@@ -21,10 +21,12 @@ Changed
 
 * ``_utils.find_nearest`` can solve for the index of an array of inputs.
 
-Added
------
+Features
+--------
 * ``track`` option to ``Observation``. This is an alias for ``obs_duration`` but has
   a closer resemblance to the original 21cmSense v1.
+* New ``calculate_sensitivity_2d_grid`` method that makes it easier to obtain a gridded
+  cylindrical power spectrum sensitivity for arbitrary bins.
 
 v2.0.0
 ======

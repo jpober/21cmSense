@@ -62,6 +62,35 @@ def test_sensitivity_2d(observation):
         ps.calculate_sensitivity_2d(thermal=False, sample=False)
 
 
+def test_sensitivity_2d_grid(observation, caplog):
+    ps = PowerSpectrum(observation=observation)
+    sense_ungridded = ps.calculate_sensitivity_2d(thermal=True, sample=True)
+    kperp = (
+        np.array([x.value for x in sense_ungridded.keys()])
+        * list(sense_ungridded.keys())[0].unit
+    )
+    sense = ps.calculate_sensitivity_2d_grid(
+        kperp_edges=np.linspace(kperp.min().value, kperp.max().value, 10) * kperp.unit,
+        kpar_edges=ps.k1d,
+    )
+    assert sense.shape == (9, len(ps.k1d) - 1)
+
+    ps.calculate_sensitivity_2d_grid(
+        kperp_edges=np.linspace(ps.k_21.min().value / 2, ps.k_21.max().value * 2, 10)
+        * ps.k_21.unit,
+        kpar_edges=ps.k_21 / 2,
+    )
+    assert "minimum kbin is being restricted" in caplog.text
+    assert "maximum kbin is being restricted" in caplog.text
+
+
+def test_sensitivity_1d_binned(observation):
+    ps = PowerSpectrum(observation=observation)
+    assert np.all(
+        ps.calculate_sensitivity_1d() == ps.calculate_sensitivity_1d_binned(ps.k1d)
+    )
+
+
 def test_plots(observation):
     # this is a dumb test, just checking that it doesn't error.
     ps = PowerSpectrum(observation=observation)

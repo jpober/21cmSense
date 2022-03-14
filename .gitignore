@@ -21,3 +21,4 @@ coverage.xml
 .pytest_cache
 .vscode/
 *MHz.h5
+docs/reference/_autosummary
