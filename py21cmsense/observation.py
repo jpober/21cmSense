@@ -22,6 +22,10 @@ class Observation:
     """
     A class defining an interferometric Observation.
 
+    Note that to achieve the same behaviour as the original 21cmSense's ``--track``
+    option (i.e. track-scan instead of drift-scan) merely requires setting ``obs_duration``
+    to the length of the tracked scan.
+
     Parameters
     ----------
     observatory : :class:`~py21cmsense.observatory.Observatory`
@@ -32,6 +36,9 @@ class Observation:
         total observing time is `n_days*hours_per_day`.  Default is 6.
         If simulating a tracked scan, `hours_per_day` should be a multiple of the length
         of the track (i.e. for two three-hour tracks per day, `hours_per_day` should be 6).
+    track
+        Tracked scan observation duration. This is an alias for ``obs_duration``, and
+        is provided only for ease of use for those familiar with 21cmSense v1.
     obs_duration : float or Quantity, optional
         The time assigned to a single LST bin, by default the time it takes for a source
         to travel through the beam's FWHM. If a float, assumed to be in minutes.
@@ -76,6 +83,12 @@ class Observation:
     time_per_day: tp.Time = attr.ib(
         6 * un.hour,
         validator=(tp.vld_physical_type("time"), ut.between(0 * un.hour, 24 * un.hour)),
+    )
+    track: tp.Time | None = attr.ib(
+        None,
+        validator=attr.validators.optional(
+            [tp.vld_physical_type("time"), ut.between(0, 24 * un.hour)]
+        ),
     )
     obs_duration: tp.Time = attr.ib(
         validator=(tp.vld_physical_type("time"), ut.between(0, 24 * un.hour)),
@@ -152,7 +165,10 @@ class Observation:
     @obs_duration.default
     def _obstime_default(self):
         # time it takes the sky to drift through beam FWHM
-        return self.observatory.observation_duration
+        if self.track is not None:
+            return self.track
+        else:
+            return self.observatory.observation_duration
 
     @bl_max.validator
     def _bl_max_vld(self, att, val):

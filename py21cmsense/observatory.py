@@ -109,26 +109,13 @@ class Observatory:
         return attr.evolve(self, **kwargs)
 
     @classmethod
-    def from_uvdata(cls, uvdata, beam: beam.PrimaryBeam) -> Observatory:
-        """Instantiate an Observatory from a :class:`pyuvdata.UVData` object or file."""
-        try:
-            import pyuvdata
-        except ImportError:
-            raise ImportError(
-                "cannot construct Observatory from uvdata object without "
-                "pyuvdata being installed!"
-            )
-
-        if isinstance(uvdata, str):
-            uv = pyuvdata.UVData()
-            uv.read(uvdata)
-        else:
-            uv = uvdata
-
+    def from_uvdata(cls, uvdata, beam: beam.PrimaryBeam, **kwargs) -> Observatory:
+        """Instantiate an Observatory from a :class:`pyuvdata.UVData` object."""
         return cls(
-            antpos=uv.antenna_positions,
+            antpos=uvdata.antenna_positions,
             beam=beam,
-            latitude=uv.telescope_location_lat_lon_alt[0],
+            latitude=uvdata.telescope_location_lat_lon_alt[0],
+            **kwargs,
         )
 
     @classmethod

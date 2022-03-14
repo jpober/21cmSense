@@ -21,6 +21,10 @@ Changed
 
 * ``_utils.find_nearest`` can solve for the index of an array of inputs.
 
+Added
+-----
+* ``track`` option to ``Observation``. This is an alias for ``obs_duration`` but has
+  a closer resemblance to the original 21cmSense v1.
 
 v2.0.0
 ======

@@ -114,3 +114,11 @@ def test_load_yaml_bad():
         match="yaml_file must be a string filepath or a raw dict from such a file",
     ):
         Sensitivity.from_yaml(1)
+
+
+def test_track(observatory):
+    """Test that setting `track` is the same as setting obs_duration."""
+    obs1 = Observation(observatory=observatory, obs_duration=1 * units.hour)
+    obs2 = Observation(observatory=observatory, track=1 * units.hour)
+
+    assert np.all(obs1.uv_coverage == obs2.uv_coverage)
