@@ -8,7 +8,7 @@ ignore =
     F401
     D401  # Imperative mood -- doesn't work for cached-property.
     N802  # TODO: remove this (function name should be lower-case)
-
+    B019  # no using lru_cache on methods
 max-line-length = 88
 max-complexity = 18
 rst-roles =

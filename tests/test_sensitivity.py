@@ -145,9 +145,26 @@ def test_load_yaml_bad():
         Sensitivity.from_yaml(1)
 
 
+def test_systematics_mask(observation):
+    ps = PowerSpectrum(
+        observation=observation,
+        systematics_mask=lambda kperp, kpar: np.zeros(len(kpar), dtype=bool),
+    )
+    assert len(ps.calculate_sensitivity_2d()) == 0
+
+
 def test_track(observatory):
     """Test that setting `track` is the same as setting obs_duration."""
     obs1 = Observation(observatory=observatory, obs_duration=1 * units.hour)
     obs2 = Observation(observatory=observatory, track=1 * units.hour)
 
     assert np.all(obs1.uv_coverage == obs2.uv_coverage)
+
+
+def test_clone(observation):
+    ps = PowerSpectrum(
+        observation=observation,
+    )
+
+    ps2 = ps.clone()
+    assert ps2 == ps
