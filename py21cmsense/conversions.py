@@ -137,6 +137,6 @@ def X2Y(
 
     Returns
     -------
-    astropy.Quantity: the conversion factor. Units are Mpc^3/h^3 / (sr GHz).
+    astropy.Quantity: the conversion factor. Units are Mpc^3/h^3 / (sr MHz).
     """
     return dL_dth(z, cosmo) ** 2 * dL_df(z, cosmo)
