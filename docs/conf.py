@@ -62,7 +62,7 @@ napoleon_use_rtype = False
 napoleon_use_param = False
 
 mathjax_path = (
-    "http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+    "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
 )
 
 exclude_patterns = [
