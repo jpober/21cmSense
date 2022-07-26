@@ -71,12 +71,6 @@ def test_observatory(bm):
     )
 
 
-@pytest.mark.skip
-def test_projected_baselines():
-    obs = Observatory()
-    assert obs.projected_baselines() == obs.baselines_metres
-
-
 def test_grid_baselines(bm):
     a = Observatory(
         antpos=np.random.normal(loc=0, scale=50, size=(20, 3)) * units.m, beam=bm
