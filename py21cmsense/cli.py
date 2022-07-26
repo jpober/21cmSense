@@ -123,6 +123,12 @@ def calc_sense(
     This is the primary command of 21cmSense, and can be run independently for a
     complete sensitivity calculation.
     """
+    if plot and not HAVE_MPL:
+        raise click.ClickException(
+            "matplotlib is required for plotting, but it is not installed. "
+            "Use --no-plot to disable plotting."
+        )
+
     # If given an array-file, overwrite the "observation" parameter
     # in the config with the pickled array file, which has already
     # calculated the uv_coverage, hopefully.
