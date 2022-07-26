@@ -69,32 +69,39 @@ def sensitivity_config_defined_p21(tmpdirec, observation_config, sensitivity_con
     return path.join(tmpdirec, "sensitivity_with_p21.yml")
 
 
-def test_gridding_baselines(runner, observation_config):
+def test_gridding_baselines(runner, observation_config, tmpdirec):
 
-    output = runner.invoke(cli.main, ["grid-baselines", observation_config])
+    output = runner.invoke(
+        cli.main, ["grid-baselines", observation_config, "--direc", str(tmpdirec)]
+    )
     if output.exception:
         traceback.print_exception(*output.exc_info)
 
     assert output.exit_code == 0
 
 
-def test_calc_sense(runner, sensitivity_config):
-    output = runner.invoke(cli.main, ["calc-sense", sensitivity_config])
+def test_calc_sense(runner, sensitivity_config, tmpdirec):
+    output = runner.invoke(
+        cli.main, ["calc-sense", sensitivity_config, "--direc", str(tmpdirec)]
+    )
     if output.exception:
         traceback.print_exception(*output.exc_info)
 
     assert output.exit_code == 0
 
 
-def test_calc_sense_with_p21(runner, sensitivity_config_defined_p21):
-    output = runner.invoke(cli.main, ["calc-sense", sensitivity_config_defined_p21])
+def test_calc_sense_with_p21(runner, sensitivity_config_defined_p21, tmpdirec):
+    output = runner.invoke(
+        cli.main,
+        ["calc-sense", sensitivity_config_defined_p21, "--direc", str(tmpdirec)],
+    )
     if output.exception:
         traceback.print_exception(*output.exc_info)
 
     assert output.exit_code == 0
 
     # ensure a plot was created
-    assert glob.glob("*.png")
+    assert glob.glob(f"{tmpdirec}/*.png")
 
 
 def test_both(runner, tmpdirec, observation_config, sensitivity_config):
