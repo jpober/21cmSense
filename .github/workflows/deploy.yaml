@@ -1,8 +1,5 @@
 name: Deploy
-on:
-  push:
-    branches:
-      - main
+on: push
 
 jobs:
   bump-version:
@@ -33,7 +30,6 @@ jobs:
     name: Deploy
     runs-on: ubuntu-latest
     needs: bump-version
-    if: needs.bump-version.outputs.new_version != null
     steps:
       - uses: actions/checkout@master
       # https://github.com/ansible/pylibssh/blob/1e7b17f/.github/workflows/build-test-n-publish.yml#L146-L151
@@ -46,14 +42,18 @@ jobs:
         run: |
           version=${{ needs.bump-version.outputs.new_version }}
           echo "SETUPTOOLS_SCM_PRETEND_VERSION=$version" >> $GITHUB_ENV
+
       - name: Install build
         run: |
           python -m pip install build
           python -m pip install setuptools_scm
           python setup.py --version
+
       - name: Build a binary wheel and a source tarball
         run: python -m build
+
       - name: Publish distribution 📦 to PyPI
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.bump-version.outputs.new_version != null }}
         uses: pypa/gh-action-pypi-publish@master
         with:
           password: ${{ secrets.pypi_password }}
