@@ -17,6 +17,10 @@ build:
   os: "ubuntu-22.04"
   tools:
     python: "mambaforge-4.10"
+  jobs:
+    pre_build:
+      - echo `pandoc --version`
+      - conda list
 
 conda:
   environment: docs/environment.yml
