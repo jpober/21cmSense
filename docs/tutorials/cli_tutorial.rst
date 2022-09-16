@@ -143,7 +143,7 @@ the same sky appears again, and these are assumed to be able to be added coheren
 
 Thus, the integration time for a given UV-cell *from a single baseline* is approximately
 
-    .. math:: n_{\rm days} * \sqrt{\frac{\rm hours}{\rm day} \frac{1}{t_{\rm LST}} t_{\rm LST}.
+    .. math:: n_{\rm days} * \sqrt{\frac{\rm hours}{\rm day} \frac{1}{t_{\rm LST}}}.
 
 In detail, this is modified slightly by rotation of the sky within an LST-bin, and how
 finely that duration is sampled (i.e. ``integration_time``), but these are second-order
