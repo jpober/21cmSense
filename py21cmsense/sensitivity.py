@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import attr
 import h5py
+import hickle
 import logging
 import numpy as np
 import os
@@ -20,6 +21,7 @@ from astropy.io.misc import yaml
 from attr import validators as vld
 from cached_property import cached_property
 from collections.abc import Mapping
+from hickleable import hickleable
 from methodtools import lru_cache
 from os import path
 from pathlib import Path
@@ -56,6 +58,7 @@ _D21_DEFAULT <<= un.mK**2
 logger = logging.getLogger(__name__)
 
 
+@hickleable(evaluate_cached_properties=True)
 @attr.s(kw_only=True)
 class Sensitivity:
     """
@@ -101,12 +104,11 @@ class Sensitivity:
 
         if obsfile.endswith(".yml"):
             observation = obs.Observation.from_yaml(obsfile)
-        elif obsfile.endswith(".pkl"):
-            with open(obsfile, "rb") as fl:
-                observation = pickle.load(fl)
+        elif h5py.is_hdf5(obsfile):
+            observation = hickle.load(obsfile)
         else:
             raise ValueError(
-                "observation must be a filename with extension .yml or .pkl"
+                "observation must be a filename with extension .yml or .h5"
             )
 
         return klass(observation=observation, **data)

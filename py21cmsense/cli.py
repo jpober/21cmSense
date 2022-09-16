@@ -6,6 +6,7 @@ import os
 import pickle
 import tempfile
 from astropy.io.misc import yaml
+from hickle import hickle
 from os import path
 from pathlib import Path
 from rich.logging import RichHandler
@@ -51,14 +52,13 @@ def grid_baselines(configfile, direc, outfile):
 
     if outfile is None:
         outfile = Path(direc) / (
-            f"drift_blmin{obs.bl_min.value:.3f}_blmax{obs.bl_max.value:.3f}_"
-            f"{obs.frequency.to('GHz').value:.3f}GHz_arrayfile.pkl"
+            f"blmin{obs.bl_min.value:.3f}_blmax{obs.bl_max.value:.3f}_"
+            f"{obs.frequency.to('GHz').value:.3f}GHz_observation.h5"
         )
     elif not Path(outfile).is_absolute():
         outfile = Path(direc) / outfile
 
-    with open(outfile, "wb") as fl:
-        pickle.dump(obs, fl)
+    hickle.dump(obs, outfile)
 
     logger.info(f"There are {len(obs.baseline_groups)} baseline types")
     logger.info(f"Saving array file as {outfile}")

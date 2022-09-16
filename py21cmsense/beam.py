@@ -5,12 +5,14 @@ import attr
 from abc import ABCMeta, abstractmethod, abstractproperty
 from astropy import constants as cnst
 from astropy import units as un
+from hickleable import hickleable
 
 from . import _utils as ut
 from . import types as tp
 
 
-@attr.s(frozen=True)
+@hickleable(evaluate_cached_properties=True)
+@attr.s
 class PrimaryBeam(metaclass=ABCMeta):
     """A Base class defining a Primary Beam and the methods it requires to define."""
 

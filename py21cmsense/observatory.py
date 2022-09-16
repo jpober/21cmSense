@@ -17,6 +17,7 @@ from astropy.io.misc import yaml
 from attr import validators as vld
 from cached_property import cached_property
 from collections import defaultdict
+from hickleable import hickleable
 from pathlib import Path
 
 from . import _utils as ut
@@ -26,7 +27,8 @@ from . import types as tp
 logger = logging.getLogger(__name__)
 
 
-@attr.s(frozen=True, kw_only=True, order=False)
+@hickleable(evaluate_cached_properties=True)
+@attr.s(kw_only=True, order=False)
 class Observatory:
     """
     A class defining an interferometric Observatory and its properties.

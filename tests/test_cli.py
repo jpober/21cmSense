@@ -113,7 +113,7 @@ def test_both(runner, tmpdirec, observation_config, sensitivity_config):
             "--direc",
             tmpdirec,
             "--outfile",
-            "arrayfile.pkl",
+            "arrayfile.h5",
         ],
     )
 
@@ -126,7 +126,7 @@ def test_both(runner, tmpdirec, observation_config, sensitivity_config):
             "calc-sense",
             sensitivity_config,
             "--array-file",
-            path.join(tmpdirec, "arrayfile.pkl"),
+            path.join(tmpdirec, "arrayfile.h5"),
             "--plot-title",
             "MYTITLE",
         ],
