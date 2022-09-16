@@ -130,8 +130,8 @@ def calc_sense(
         )
 
     # If given an array-file, overwrite the "observation" parameter
-    # in the config with the pickled array file, which has already
-    # calculated the uv_coverage, hopefully.
+    # in the config with the hickled array file, which has already
+    # calculated the uv_coverage.
     if array_file is not None:
         with open(configfile) as fl:
             cfg = yaml.load(fl)
