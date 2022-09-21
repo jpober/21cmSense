@@ -72,6 +72,7 @@ def hera(
                 new_pos.append(np.asarray(pos) + up_left - (up_right + up_left) / 3)
             else:
                 new_pos.append(pos)
+
         # update the positions
         positions = new_pos
 

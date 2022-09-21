@@ -147,7 +147,7 @@ def calc_sense(
         f"{sensitivity.k1d.min()} and {sensitivity.k1d.max()}"
     )
     sensitivity.write(
-        filename=fname, thermal=thermal, sample=samplevar, prefix=f"{direc}/{prefix}"
+        filename=fname, thermal=thermal, sample=samplevar, direc=direc, prefix=prefix
     )
 
     if write_significance:
@@ -158,7 +158,7 @@ def calc_sense(
         fig = sensitivity.plot_sense_1d(thermal=thermal, sample=samplevar)
         if plot_title:
             plt.title(plot_title)
-        prefix + "_" if prefix else ""
+        f"{prefix}_" if prefix else ""
         fig.savefig(
             f"{direc}/{prefix}{sensitivity.foreground_model}_"
             f"{sensitivity.observation.frequency:.3f}.png"

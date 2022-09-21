@@ -2,6 +2,39 @@
 FAQ
 ===
 
+How do I use my own theoretical model?
+--------------------------------------
+The theoretical model is required to compute sample (or cosmic) variance.
+By default, ``21cmSense`` uses a state-of-the-art model run with `21cmFAST <https://github.com/21cmFAST/21cmFAST>`_
+from https://arxiv.org/abs/2110.13919. This model provides power spectra at multiple
+redshifts and wavenumbers, and should be sufficient for most sensitivity calculations.
+
+If you would like to provide your own theoretical model, you should provide your own
+implementation of the :class:`py21cmsense.theory.TheoryModel` class. This class
+has two required definitions: a class variable ``use_littleh``, which determines the
+units of ``k`` that are passed to it, and the method ``delta_squared``. A simple
+power-law theoretical model may be implemented like this::
+
+    from py21cmsense.theory import TheoryModel
+    from astropy import units as un
+
+    class PowerLaw(TheoryModel):
+        use_littleh = False
+
+        def delta_squared(self, z: float, k: np.ndarray) -> un.Quantity[un.mK**2]:
+            return ((1 + z)**2 * (k / 100.0)**-2) << un.mK**2
+
+Note that the ``delta_squared`` method must exactly match this signature, as it is
+called from within the :class:`py21cmsense.sensitivity.PowerSpectrum` class.
+The default :class:`py21cmsense.theory.EOS2021` model loads a 2D array of values
+in redshift and *k* and interpolates them. You could easily set up something similar to
+this.
+
+How do I use my custom theory function from the CLI?
+----------------------------------------------------
+
+
+
 How do I change cosmology?
 --------------------------
 

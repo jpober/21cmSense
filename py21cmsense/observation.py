@@ -219,6 +219,7 @@ class Observation:
 
     @cached_property
     def uv_coverage(self) -> np.ndarray:
+        # sourcery skip: assign-if-exp, swap-if-expression
         """A 2D array specifying the effective number of baselines in a grid of UV.
 
         Defined after earth rotation synthesis for a particular LST bin.

@@ -29,27 +29,9 @@ def test_units(observation):
     ps = PowerSpectrum(observation=observation)
 
     assert ps.horizon_buffer.to("littleh/Mpc").unit == units.littleh / units.Mpc
-    assert ps.k_21.to("littleh/Mpc").unit == units.littleh / units.Mpc
-    assert ps.delta_21.to("mK^2").unit == units.mK**2
-    assert callable(ps.p21)
-    assert ps.k_min.to("littleh/Mpc").unit == units.littleh / units.Mpc
-    assert ps.k_max.to("littleh/Mpc").unit == units.littleh / units.Mpc
     assert ps.k1d.to("littleh/Mpc").unit == units.littleh / units.Mpc
     assert isinstance(ps.power_normalisation(0.1 * units.littleh / units.Mpc), float)
     assert ps.horizon_limit(10).to("littleh/Mpc").unit == units.littleh / units.Mpc
-
-    ps = PowerSpectrum(
-        observation=observation,
-        k_21=np.array([1, 2, 3]) * units.littleh / units.Mpc,
-        delta_21=np.array([1, 2, 3]) * units.mK**2,
-    )
-    ps2 = PowerSpectrum(
-        observation=observation,
-        k_21=np.array([1, 2, 3]) / units.Mpc,
-        delta_21=np.array([1, 2, 3]) * units.mK**2,
-    )
-
-    assert np.all(ps.k_21 < ps2.k_21)
 
 
 def test_sensitivity_2d(observation):
@@ -75,14 +57,6 @@ def test_sensitivity_2d_grid(observation, caplog):
     )
     assert sense.shape == (9, len(ps.k1d) - 1)
 
-    ps.calculate_sensitivity_2d_grid(
-        kperp_edges=np.linspace(ps.k_21.min().value / 2, ps.k_21.max().value * 2, 10)
-        * ps.k_21.unit,
-        kpar_edges=ps.k_21 / 2,
-    )
-    assert "minimum kbin is being restricted" in caplog.text
-    assert "maximum kbin is being restricted" in caplog.text
-
 
 def test_sensitivity_1d_binned(observation):
     ps = PowerSpectrum(observation=observation)
@@ -101,20 +75,6 @@ def test_plots(observation):
 def test_sensitivity_optimistic(observation):
     ps = PowerSpectrum(observation=observation, foreground_model="optimistic")
     assert ps.horizon_limit(10.0) > ps.horizon_limit(5.0)
-
-
-def test_limited_k_range(observation, caplog):
-    ps = PowerSpectrum(
-        observation=observation,
-        k_21=np.array([1, 2, 3]) * units.littleh / units.Mpc,
-        delta_21=np.array([1, 2, 3]) * units.mK**2,
-    )
-
-    ps.k1d
-
-    assert any(
-        "The minimum k value is being restricted" in rec.msg for rec in caplog.records
-    )
 
 
 def test_infs_in_trms(observation):

@@ -9,6 +9,8 @@ ignore =
     D401  # Imperative mood -- doesn't work for cached-property.
     N802  # TODO: remove this (function name should be lower-case)
     B019  # no using lru_cache on methods
+    G004  # logging uses f-string
+    D107  # no docstring in __init__
 max-line-length = 88
 max-complexity = 18
 rst-roles =

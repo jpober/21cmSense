@@ -181,3 +181,20 @@ def test_longest_used_baseline(bm):
         1 * units.m,
         atol=1e-4,
     )
+
+
+def test_from_yaml(bm):
+    obs = Observatory.from_yaml(
+        {
+            "antpos": np.random.random((20, 3)) * units.m,
+            "beam": {
+                "class": "GaussianBeam",
+                "frequency": 150 * units.MHz,
+                "dish_size": 14 * units.m,
+            },
+        }
+    )
+    assert obs.beam == bm
+
+    with pytest.raises(ValueError):
+        Observatory.from_yaml(3)
