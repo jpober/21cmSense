@@ -167,7 +167,9 @@ class PowerSpectrum(Sensitivity):
 
         if "plugins" in data:
             if not isinstance(data["plugins"], list):
-                raise ValueError("plugins in YAML file must be a list of modules.")
+                raise ValueError(
+                    "plugins in YAML file must be a list of modules."
+                )  # pragma: no cover
 
             for mdl in data.pop("plugins"):
                 try:
@@ -228,9 +230,6 @@ class PowerSpectrum(Sensitivity):
     def power_normalisation(self, k: tp.Wavenumber) -> float:
         """Normalisation constant for power spectrum."""
         k = _kconverter(k)
-
-        if not k.unit.is_equivalent(littleh / un.Mpc):
-            raise ValueError("k must be in units of 1/Mpc or h/Mpc")
 
         return (
             self.X2Y

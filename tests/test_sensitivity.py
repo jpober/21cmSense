@@ -108,6 +108,21 @@ def test_load_yaml_bad():
     ):
         Sensitivity.from_yaml(1)
 
+    with pytest.raises(ImportError, match="Could not import"):
+        PowerSpectrum.from_yaml(
+            {
+                "plugins": ["this.is.not.a.module"],
+                "observatory": {
+                    "antpos": np.random.random((20, 3)) * units.m,
+                    "beam": {
+                        "class": "GaussianBeam",
+                        "frequency": 150 * units.MHz,
+                        "dish_size": 14 * units.m,
+                    },
+                },
+            }
+        )
+
 
 def test_systematics_mask(observation):
     ps = PowerSpectrum(
@@ -132,3 +147,10 @@ def test_clone(observation):
 
     ps2 = ps.clone()
     assert ps2 == ps
+
+
+def test_bad_theory(observation):
+    with pytest.raises(
+        ValueError, match="The theory_model must be an instance of TheoryModel"
+    ):
+        PowerSpectrum(observation=observation, theory_model=3)

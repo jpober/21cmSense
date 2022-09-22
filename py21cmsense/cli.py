@@ -123,7 +123,7 @@ def calc_sense(
     This is the primary command of 21cmSense, and can be run independently for a
     complete sensitivity calculation.
     """
-    if plot and not HAVE_MPL:
+    if plot and not HAVE_MPL:  # pragma: no cover
         raise click.ClickException(
             "matplotlib is required for plotting, but it is not installed. "
             "Use --no-plot to disable plotting."
