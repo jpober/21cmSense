@@ -61,7 +61,10 @@ class EOS2021(TheoryModel):
     def __init__(self):
         pth = Path(__file__).parent / "data/eos2021"
         z = np.fromfile(pth / "1pt5Gpc_EOS_coeval_pow_zlist.bin")
-        self.k = np.fromfile(pth / "1pt5Gpc_EOS_coeval_pow_kbins.bin")
+        # TODO: we divide by 2.5 here as the k values on the EOS2021 GDrive are wrong --
+        # they are for the 600 Mpc box instead of the 1.5 Gpc box. Later when that's
+        # fixed we should just fix the data here.
+        self.k = np.fromfile(pth / "1pt5Gpc_EOS_coeval_pow_kbins.bin") / 2.5
         coeval_ps = np.fromfile(pth / "1pt5Gpc_EOS_coeval_pow_P21.bin").reshape(
             (z.size, self.k.size)
         )

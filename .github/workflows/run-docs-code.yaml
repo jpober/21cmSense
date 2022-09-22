@@ -1,0 +1,55 @@
+name: Test Suite
+on: [push, pull_request]
+
+
+jobs:
+  tests:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      ENV_NAME: testing
+    strategy:
+      fail-fast: false
+      matrix:
+        demo: ["docs/tutorials/getting_started.ipynb", "docs/tutorials/undertanding_21cmsense.ipynb"]
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+
+      - name: Setup Miniconda
+        uses: conda-incubator/setup-miniconda@v2.0.0
+        with:
+          auto-update-conda: true
+#          mamba-version: "*"
+          channels: conda-forge,defaults
+          channel-priority: true
+          python-version: ${{ matrix.python-version }}
+          environment-file: ci/${{ env.ENV_NAME }}.yaml
+          activate-environment: ${{ env.ENV_NAME }}
+
+      - name: Conda Info
+        run: |
+          conda info
+          python --version
+
+      - name: Install Test Deps
+        run: |
+          pip install .
+          pip install papermill
+          conda list
+
+      - name: Install ipykernel
+        run: python -m ipykernel install --user --name sense --display-name "sense"
+
+      - name: Run Notebook
+        run: |
+          papermill -k sense docs/tutorials/${{ matrix.demo }}.ipynb output-${{ matrix.demo }}.ipynb
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.demo }}
+          path: output-${{ matrix.demo }}.ipynb
