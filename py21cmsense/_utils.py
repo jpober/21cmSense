@@ -80,7 +80,7 @@ def phase(jd, ra, dec, telescope_location, uvws0):
 
     itrs_telescope_location = telescope_location.get_itrs(obstime=obs_time)
 
-    frame_telescope_location = itrs_telescope_location.transform_to(ICRS)
+    frame_telescope_location = itrs_telescope_location.transform_to(ICRS())
     frame_telescope_location.representation_type = "cartesian"
 
     uvw_ecef = uvutils.ECEF_from_ENU(

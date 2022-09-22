@@ -1,7 +1,9 @@
 import pytest
 
 import numpy as np
+import warnings
 from astropy import units
+from astropy.cosmology.units import littleh
 
 from py21cmsense import GaussianBeam, Observation, Observatory, PowerSpectrum
 from py21cmsense.sensitivity import Sensitivity, _kconverter
@@ -28,10 +30,10 @@ def observation(observatory):
 def test_units(observation):
     ps = PowerSpectrum(observation=observation)
 
-    assert ps.horizon_buffer.to("littleh/Mpc").unit == units.littleh / units.Mpc
-    assert ps.k1d.to("littleh/Mpc").unit == units.littleh / units.Mpc
-    assert isinstance(ps.power_normalisation(0.1 * units.littleh / units.Mpc), float)
-    assert ps.horizon_limit(10).to("littleh/Mpc").unit == units.littleh / units.Mpc
+    assert ps.horizon_buffer.to("littleh/Mpc").unit == littleh / units.Mpc
+    assert ps.k1d.to("littleh/Mpc").unit == littleh / units.Mpc
+    assert isinstance(ps.power_normalisation(0.1 * littleh / units.Mpc), float)
+    assert ps.horizon_limit(10).to("littleh/Mpc").unit == littleh / units.Mpc
 
 
 def test_sensitivity_2d(observation):
@@ -87,8 +89,10 @@ def test_infs_in_trms(observation):
 
 def test_write_to_custom_filename(observation, tmp_path):
     out = tmp_path / "outfile.h5"
-    ps = PowerSpectrum(observation=observation)
-    out2 = ps.write(filename=out)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        ps = PowerSpectrum(observation=observation)
+        out2 = ps.write(filename=out)
     assert out2 == out
 
 

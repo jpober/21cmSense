@@ -4,6 +4,7 @@ import copy
 import numpy as np
 import pickle
 from astropy import units
+from astropy.cosmology.units import littleh
 
 from py21cmsense import GaussianBeam, Observation, Observatory
 
@@ -39,7 +40,7 @@ def test_units(observatory):
     assert obs.Tsys.to("mK").unit == units.mK
     assert obs.Trms.to("mK").unit == units.mK
     assert 6 < obs.redshift < 12
-    assert obs.kparallel.unit == units.littleh / units.Mpc
+    assert obs.kparallel.unit == littleh / units.Mpc
     assert obs.total_integration_time.to("s").unit == units.s
     assert len(obs.ugrid_edges) == len(obs.ugrid) + 1
     assert obs.clone() == obs
