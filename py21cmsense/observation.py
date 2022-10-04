@@ -13,6 +13,7 @@ from hickleable import hickleable
 from os import path
 
 from . import _utils as ut
+from . import config
 from . import conversions as conv
 from . import observatory as obs
 from . import types as tp
@@ -282,7 +283,7 @@ class Observation:
 
         Order of the values is the same as `fftfreq` (i.e. zero-first)
         """
-        return conv.dk_deta(self.redshift) * self.eta
+        return conv.dk_deta(self.redshift, config.COSMO) * self.eta
 
     @cached_property
     def total_integration_time(self) -> un.Quantity[un.s]:

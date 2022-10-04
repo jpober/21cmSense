@@ -201,7 +201,10 @@ class PowerSpectrum(Sensitivity):
     @cached_property
     def k1d(self) -> tp.Wavenumber:
         """1D array of wavenumbers for which sensitivities will be generated."""
-        delta = conv.dk_deta(self.observation.redshift) / self.observation.bandwidth
+        delta = (
+            conv.dk_deta(self.observation.redshift, config.COSMO)
+            / self.observation.bandwidth
+        )
         dv = delta.value
         return np.arange(dv, dv * self.observation.n_channels, dv) * delta.unit
 
@@ -279,7 +282,7 @@ class PowerSpectrum(Sensitivity):
                 continue
 
             umag = np.sqrt(u**2 + v**2)
-            k_perp = umag * conv.dk_du(self.observation.redshift)
+            k_perp = umag * conv.dk_du(self.observation.redshift, config.COSMO)
 
             hor = self.horizon_limit(umag)
 
@@ -405,9 +408,7 @@ class PowerSpectrum(Sensitivity):
             # Get the kperp bin it's in.
             kperp_indx = np.where(k_perp >= kperp_edges)[0][-1]
 
-            k = np.sqrt(self.observation.kparallel**2 + k_perp**2)
-
-            kpar_indx = np.digitize(k, kpar_edges) - 1
+            kpar_indx = np.digitize(self.observation.kparallel, kpar_edges) - 1
             good_ks = kpar_indx >= 0
             good_ks &= kpar_indx < len(kpar_edges) - 1
 
@@ -436,7 +437,9 @@ class PowerSpectrum(Sensitivity):
             Horizon limit, in h/Mpc.
         """
         horizon = (
-            conv.dk_deta(self.observation.redshift) * umag / self.observation.frequency
+            conv.dk_deta(self.observation.redshift, config.COSMO)
+            * umag
+            / self.observation.frequency
         )
         # calculate horizon limit for baseline of length umag
         if self.foreground_model in ["moderate", "pessimistic"]:

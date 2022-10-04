@@ -95,6 +95,11 @@ class GaussianBeam(PrimaryBeam):
     )
 
     @property
+    def wavelength(self) -> un.Quantity[un.m]:
+        """The wavelength of the observation."""
+        return (cnst.c / self.frequency).to("m")
+
+    @property
     def dish_size_in_lambda(self) -> float:
         """The dish size in units of wavelengths."""
         return (self.dish_size / (cnst.c / self.frequency)).to("").value
