@@ -19,6 +19,7 @@ from cached_property import cached_property
 from collections import defaultdict
 from hickleable import hickleable
 from pathlib import Path
+from typing import Callable
 
 from . import _utils as ut
 from . import beam, config
@@ -44,8 +45,9 @@ class Observatory:
     latitude : float or Quantity, optional
         Latitude of the array center. If a float, assumed to be in radians.
         Note that longitude is not required, as we assume an isotropic sky.
-    Trcv : float or Quantity
-        Receiver temperature, assumed to be in mK unless otherwise defined.
+    Trcv
+        Receiver temperature, either a temperature Quantity, or a callable that
+        taakes a single frequency Quantity and returns a temperature Quantity.
     min_antpos, max_antpos
         The minimum/maximum radial distance to include antennas (from the origin
         of the array). Assumed to be in units of meters if no units are supplied.
@@ -59,7 +61,7 @@ class Observatory:
         0 * un.rad,
         validator=ut.between(-np.pi * un.rad / 2, np.pi * un.rad / 2),
     )
-    Trcv: tp.Temperature = attr.ib(100 * un.K, validator=ut.nonnegative)
+    Trcv: tp.Temperature | Callable = attr.ib(100 * un.K)
     max_antpos: tp.Length = attr.ib(
         default=np.inf * un.m, validator=(tp.vld_physical_type("length"), ut.positive)
     )
@@ -94,6 +96,17 @@ class Observatory:
             )
 
         return antpos
+
+    @Trcv.validator
+    def _trcv_vld(self, att, val):
+        try:
+            y = val(1 * un.MHz)
+            if not (
+                isinstance(y, un.Quantity) and y.unit.physical_type == "temperature"
+            ):
+                raise ValueError("Trcv function must return a temperature Quantity.")
+        except Exception:
+            tp.vld_physical_type("temperature")(self, att, val)
 
     @property
     def frequency(self) -> un.Quantity[un.MHz]:
@@ -229,8 +242,7 @@ class Observatory:
 
     def get_redundant_baselines(
         self,
-        bl_min: tp.Length = 0 * un.m,
-        bl_max: tp.Length = np.inf * un.m,
+        baseline_filters: Callable | tuple[Callable] = (),
         ndecimals: int = 1,
     ) -> dict[tuple[float, float, float], list[tuple[int, int]]]:
         """
@@ -238,10 +250,9 @@ class Observatory:
 
         Parameters
         ----------
-        bl_min : float or astropy.Quantity, optional
-            The minimum baseline to consider, in metres (or compatible units)
-        bl_max : float or astropy.Quantity, optional
-            The maximum baseline to consider, in metres (or compatible units)
+        baseline_filters
+            Callable function (or functions) of a single 3-coordinate baseline vector
+            that returns a bool indicating whether to include the baseline.
         ndecimals : int, optional
             The number of decimals to which the UV points must be the same to be
             considered redundant.
@@ -253,9 +264,13 @@ class Observatory:
             of a pair of antennas with those co-ordinates.
         """
         uvbins = defaultdict(list)
+        baseline_filters = tp._tuplify(baseline_filters, 1)
 
-        bl_min = bl_min.to("m") * self.metres_to_wavelengths
-        bl_max = bl_max.to("m") * self.metres_to_wavelengths
+        def filt(blm):
+            for filt in baseline_filters:
+                if not filt(blm):
+                    return False
+            return True
 
         uvw = self.projected_baselines()
         # group redundant baselines
@@ -266,11 +281,13 @@ class Observatory:
             disable=not config.PROGRESS,
         ):
             for j in range(i + 1, self.n_antennas):
+                blm = self.baselines_metres[i, j]
 
-                bl_len = self.baseline_lengths[i, j]  # in wavelengths
-                if bl_len < bl_min or bl_len > bl_max:
+                # Check if we want to include this baseline.
+                if not filt(blm):
                     continue
 
+                bl_len = self.baseline_lengths[i, j]
                 u, v = uvw[i, j][:2]
 
                 uvbin = (
@@ -348,8 +365,7 @@ class Observatory:
         baselines: tp.Length | None = None,
         weights: np.ndarray | None = None,
         integration_time: tp.Time = 60.0 * un.s,
-        bl_min: tp.Length = 0 * un.m,
-        bl_max: tp.Length = np.inf * un.m,
+        baseline_filters: Callable | tuple[Callable] = (),
         observation_duration: tp.Time | None = None,
         ndecimals: int = 1,
     ) -> np.ndarray:
@@ -372,10 +388,10 @@ class Observatory:
         integration_time : float or Quantity, optional
             The amount of time integrated into a snapshot visibility, assumed
             to be in seconds.
-        bl_min : float or Quantity, optional
-            Minimum baseline length (in meters) to include in the gridding.
-        bl_max : float or Quantity, optional
-            Maximum baseline length (in meters) to include in the gridding.
+        baseline_filters
+            A function that takes a single value: a length-3 array of baseline co-ordinates,
+            and returns a bool indicating whether to include the baseline. Built-in filters
+            are provided in the :mod:`~baseline_filters` module.
         observation_duration : float or Quantity, optional
             Amount of time in a single (coherent) LST bin, assumed to be in minutes.
         ndecimals : int, optional
@@ -400,17 +416,18 @@ class Observatory:
             assert baselines.ndim in (2, 3)
 
         assert un.get_physical_type(integration_time) == "time"
-        assert un.get_physical_type(bl_min) == "length"
-        assert un.get_physical_type(bl_max) == "length"
+
         if observation_duration is not None:
             assert un.get_physical_type(observation_duration) == "time"
 
         if baselines is None:
             baseline_groups = self.get_redundant_baselines(
-                bl_min=bl_min, bl_max=bl_max, ndecimals=ndecimals
+                baseline_filters=baseline_filters, ndecimals=ndecimals
             )
             baselines = self.baseline_coords_from_groups(baseline_groups)
             weights = self.baseline_weights_from_groups(baseline_groups)
+
+        bl_max = np.sqrt(np.max(np.sum(baselines**2, axis=1)))
 
         if weights is None:
             raise ValueError(
@@ -443,10 +460,8 @@ class Observatory:
 
         return uvsum
 
-    def longest_used_baseline(
-        self, bl_max: tp.Length = np.inf * un.m
-    ) -> un.Quantity[un.m]:
-        """Determine the maximum baseline length kept in the array."""
+    def longest_used_baseline(self, bl_max: tp.Length = np.inf * un.m) -> float:
+        """Determine the maximum baseline length kept in the array, in wavelengths."""
         if np.isinf(bl_max):
             return self.longest_baseline
 

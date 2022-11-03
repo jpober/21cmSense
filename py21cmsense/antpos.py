@@ -6,7 +6,7 @@ of antennae centred at zero.
 """
 import numpy as np
 from astropy import units as un
-from typing import Optional
+from typing import Sequence
 
 from . import types as tp
 from . import yaml
@@ -23,7 +23,8 @@ def hera(
     """
     Produce a simple regular hexagonal array.
 
-    .. note:: This has no offset for the three parallelograms.
+    Note that the returned order of the core array antennas matches the antenna
+    numbering used by the HERA team.
 
     Parameters
     ----------
@@ -47,7 +48,7 @@ def hera(
 
     # construct the main hexagon
     positions = []
-    for row in range(hex_num - 1, -hex_num + split_core, -1):
+    for row in range(-hex_num + split_core + 1, hex_num):
         # adding split_core deletes a row if it's true
         for col in range(2 * hex_num - abs(row) - 1):
             x_pos = sep * ((2 - (2 * hex_num - abs(row))) / 2 + col)

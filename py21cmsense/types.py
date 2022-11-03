@@ -64,3 +64,10 @@ def vld_unit(unit, equivalencies=()):
             )
 
     return _check_unit
+
+
+def _tuplify(x, n: int = 1):
+    try:
+        return tuple(x)
+    except TypeError:
+        return (x,) * n

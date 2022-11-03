@@ -145,3 +145,7 @@ class GaussianBeam(PrimaryBeam):
     def from_uvbeam(cls):
         """Construct the beam from a :class:`pyuvdata.UVBeam` object."""
         raise NotImplementedError("Coming Soon!")
+
+    def clone(self, **kwargs):
+        """Create a new beam with updated parameters."""
+        return attr.evolve(self, **kwargs)

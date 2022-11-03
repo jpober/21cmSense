@@ -8,9 +8,10 @@ from astropy import units as un
 from astropy.io.misc import yaml
 from attr import validators as vld
 from collections import defaultdict
-from functools import cached_property
+from functools import cached_property, partial
 from hickleable import hickleable
 from os import path
+from typing import Callable
 
 from . import _utils as ut
 from . import config
@@ -59,10 +60,10 @@ class Observation:
         The number of days observed (for the same set of LSTs). The default is 180, which is the
         maximum a particular R.A. can be observed in one year if one only observes at night.
         The total observing time is `n_days*hours_per_day`.
-    bl_min : float, optional
-        Set the minimum baseline (in meters) to include in the uv plane.
-    bl_max : float, optional
-        Set the maximum baseline (in meters) to include in the uv plane.
+    baseline_filters
+        A function that takes a single value: a length-3 array of baseline co-ordinates,
+        and returns a bool indicating whether to include the baseline. Built-in filters
+        are provided in the :mod:`~baseline_filters` module.
     redundancy_tol : int, optional
         The number of decimal places to which baseline vectors must match (in
         all dimensions) to be considered redundant.
@@ -93,7 +94,7 @@ class Observation:
             [tp.vld_physical_type("time"), ut.between(0, 24 * un.hour)]
         ),
     )
-    obs_duration: tp.Time = attr.ib(
+    lst_bin_size: tp.Time = attr.ib(
         validator=(tp.vld_physical_type("time"), ut.between(0, 24 * un.hour)),
     )
     integration_time: tp.Time = attr.ib(
@@ -104,12 +105,8 @@ class Observation:
         8 * un.MHz, validator=(tp.vld_physical_type("frequency"), ut.positive)
     )
     n_days: int = attr.ib(default=180, converter=int, validator=ut.positive)
-    bl_min: tp.Length = attr.ib(
-        default=0 * un.m, validator=(tp.vld_physical_type("length"), ut.nonnegative)
-    )
-    bl_max: tp.Length = attr.ib(
-        default=np.inf * un.m,
-        validator=(tp.vld_physical_type("length"), ut.nonnegative),
+    baseline_filters: tuple[Callable[[tp.Length], bool]] = attr.ib(
+        default=(), converter=tp._tuplify
     )
     redundancy_tol: int = attr.ib(default=1, converter=int, validator=ut.nonnegative)
     coherent: bool = attr.ib(default=True, converter=bool)
@@ -150,17 +147,17 @@ class Observation:
         observatory = obs.Observatory.from_yaml(data.pop("observatory"))
         return cls(observatory=observatory, **data)
 
-    @obs_duration.validator
+    @lst_bin_size.validator
     def _obs_duration_vld(self, att, val):
         if val > self.time_per_day:
             raise ValueError("obs_duration must be <= time_per_day")
 
     @integration_time.validator
     def _integration_time_vld(self, att, val):
-        if val > self.obs_duration:
+        if val > self.lst_bin_size:
             raise ValueError("integration_time must be <= obs_duration")
 
-    @obs_duration.default
+    @lst_bin_size.default
     def _obstime_default(self):
         # time it takes the sky to drift through beam FWHM
         if self.track is not None:
@@ -168,13 +165,15 @@ class Observation:
         else:
             return self.observatory.observation_duration
 
-    @bl_max.validator
-    def _bl_max_vld(self, att, val):
-        if val <= self.bl_min:
-            raise ValueError(
-                "bl_max must be greater than bl_min, got "
-                f"bl_min={self.bl_min} and bl_max={val}"
-            )
+    @cached_property
+    def beam_crossing_time(self):
+        """The time it takes for a source to cross the beam.
+
+        This defines the number of independent cosmic fields observed in a night, which
+        in turn defines the cosmic sample variance. Observations are not assumed to be
+        averaged coherently within this time (for thermal variance calculations).
+        """
+        return self.observatory.observation_duration
 
     @cached_property
     def baseline_groups(
@@ -187,7 +186,7 @@ class Observation:
         baseline group.
         """
         return self.observatory.get_redundant_baselines(
-            bl_min=self.bl_min, bl_max=self.bl_max, ndecimals=self.redundancy_tol
+            baseline_filters=self.baseline_filters, ndecimals=self.redundancy_tol
         )
 
     def __getstate__(self):
@@ -213,6 +212,21 @@ class Observation:
         """The number of baselines in each group."""
         return self.observatory.baseline_weights_from_groups(self.baseline_groups)
 
+    @cached_property
+    def baseline_group_lengths(self) -> un.Quantity[un.m]:
+        """The displacement magnitude of the baseline groups."""
+        return np.sqrt(np.sum(self.baseline_group_coords**2, axis=1))
+
+    @cached_property
+    def bl_min(self) -> un.Quantity[un.m]:
+        """Shortest included baseline."""
+        return self.baseline_group_lengths.min()
+
+    @cached_property
+    def bl_max(self) -> un.Quantity[un.m]:
+        """Shortest included baseline."""
+        return self.baseline_group_lengths.max()
+
     @property
     def frequency(self) -> un.Quantity[un.MHz]:
         """Frequency of the observation."""
@@ -235,9 +249,7 @@ class Observation:
             baselines=self.baseline_group_coords,
             weights=self.baseline_group_counts,
             integration_time=self.integration_time,
-            bl_min=self.bl_min,
-            bl_max=self.bl_max,
-            observation_duration=self.obs_duration,
+            observation_duration=self.lst_bin_size,
             ndecimals=self.redundancy_tol,
         )
 
@@ -251,7 +263,7 @@ class Observation:
         where `obs_duration` is the time it takes for a source to travel
         through the beam FWHM.
         """
-        return (self.time_per_day / self.obs_duration).to("").value
+        return (self.time_per_day / self.lst_bin_size).to("").value
 
     @cached_property
     def Tsky(self) -> un.Quantity[un.K]:
@@ -261,9 +273,17 @@ class Observation:
         )
 
     @cached_property
+    def Trcv(self) -> un.Quantity[un.K]:
+        """Receiver temperature."""
+        if isinstance(self.observatory.Trcv, un.Quantity):
+            return self.observatory.Trcv.to("K")
+        else:
+            return self.observatory.Trcv(self.frequency).to("K")
+
+    @cached_property
     def Tsys(self) -> un.Quantity[un.K]:
         """System temperature (i.e. Tsky + Trcv)."""
-        return self.Tsky.to("K") + self.observatory.Trcv.to("K")
+        return self.Tsky.to("K") + self.Trcv
 
     @cached_property
     def redshift(self) -> float:
