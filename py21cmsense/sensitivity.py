@@ -148,6 +148,9 @@ class PowerSpectrum(Sensitivity):
         A function that takes a single kperp and an array of kpar, and returns a boolean
         array specifying which of the k's are useable after accounting for systematics.
         that is, it returns False for k's affected by systematics.
+    taper
+        A frequency taper function used to ensure smoothness of a Fourier transform
+        over frequency. This reduces the effective amount of data actually used
     """
 
     horizon_buffer: tp.Wavenumber = attr.ib(
@@ -164,6 +167,7 @@ class PowerSpectrum(Sensitivity):
     theory_model: TheoryModel = attr.ib()
 
     systematics_mask: Callable | None = attr.ib(None)
+    taper: Callable | None = attr.ib(None)
 
     @classmethod
     def from_yaml(cls, yaml_file) -> Sensitivity:
