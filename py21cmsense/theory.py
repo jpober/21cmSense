@@ -53,28 +53,8 @@ class TheoryModel(abc.ABC):
         pass  # pragma: no cover
 
 
-class EOS2021(TheoryModel):
-    """Theory model from EOS2021 (https://arxiv.org/abs/2110.13919)."""
-
-    use_littleh = False
-
-    def __init__(self):
-        pth = Path(__file__).parent / "data/eos2021"
-        z = np.fromfile(pth / "1pt5Gpc_EOS_coeval_pow_zlist.bin")
-        # TODO: we divide by 2.5 here as the k values on the EOS2021 GDrive are wrong --
-        # they are for the 600 Mpc box instead of the 1.5 Gpc box. Later when that's
-        # fixed we should just fix the data here.
-        self.k = np.fromfile(pth / "1pt5Gpc_EOS_coeval_pow_kbins.bin") / 2.5
-        coeval_ps = np.fromfile(pth / "1pt5Gpc_EOS_coeval_pow_P21.bin").reshape(
-            (z.size, self.k.size)
-        )
-
-        # Sort in order of ascending redshift
-        order = np.argsort(z)
-        self.z = z[order]
-        self.coeval_ps = coeval_ps[order]
-
-        self.spline = RectBivariateSpline(self.z, self.k, self.coeval_ps, ky=1)
+class TheorySpline(TheoryModel):
+    """Base class for theory models that are defined by a spline over (z,k)."""
 
     def delta_squared(self, z: float, k: np.ndarray) -> un.Quantity[un.mK**2]:
         """Compute Delta^2(k, z) for the theory model.
@@ -106,6 +86,70 @@ class EOS2021(TheoryModel):
             )
 
         return self.spline(z, k, grid=False) << un.mK**2
+
+
+class EOS2021(TheorySpline):
+    """Theory model from EOS2021 (https://arxiv.org/abs/2110.13919)."""
+
+    use_littleh = False
+
+    def __init__(self):
+        pth = Path(__file__).parent / "data/eos2021"
+        z = np.fromfile(pth / "1pt5Gpc_EOS_coeval_pow_zlist.bin")
+        # TODO: we divide by 2.5 here as the k values on the EOS2021 GDrive are wrong --
+        # they are for the 600 Mpc box instead of the 1.5 Gpc box. Later when that's
+        # fixed we should just fix the data here.
+        self.k = np.fromfile(pth / "1pt5Gpc_EOS_coeval_pow_kbins.bin") / 2.5
+        coeval_ps = np.fromfile(pth / "1pt5Gpc_EOS_coeval_pow_P21.bin").reshape(
+            (z.size, self.k.size)
+        )
+
+        # Sort in order of ascending redshift
+        order = np.argsort(z)
+        self.z = z[order]
+        self.coeval_ps = coeval_ps[order]
+
+        self.spline = RectBivariateSpline(self.z, self.k, self.coeval_ps, ky=1)
+
+
+class EOS2016Faint(TheorySpline):
+    """Theory model from EOS2021 (https://arxiv.org/abs/2110.13919)."""
+
+    use_littleh = False
+
+    def __init__(self):
+        pth = Path(__file__).parent / "data/eos16-faint"
+        all_files = sorted(pth.glob("ps_no_halos*"))
+        self.z = np.array([float(f.name.split("_")[3][1:]) for f in all_files])
+
+        # TODO: we divide by 2.5 here as the k values on the EOS2021 GDrive are wrong --
+        # they are for the 600 Mpc box instead of the 1.5 Gpc box. Later when that's
+        # fixed we should just fix the data here.
+        self.k = np.genfromtxt(all_files[0])[:, 0]
+
+        self.coeval_ps = np.array([np.genfromtxt(fl)[:, 1] for fl in all_files])
+
+        self.spline = RectBivariateSpline(self.z, self.k, self.coeval_ps, ky=1)
+
+
+class EOS2016Bright(TheorySpline):
+    """Theory model from EOS2021 (https://arxiv.org/abs/2110.13919)."""
+
+    use_littleh = False
+
+    def __init__(self):
+        pth = Path(__file__).parent / "data/eos16-bright"
+        all_files = sorted(pth.glob("ps_no_halos*"))
+        self.z = np.array([float(f.name.split("_")[3][1:]) for f in all_files])
+
+        # TODO: we divide by 2.5 here as the k values on the EOS2021 GDrive are wrong --
+        # they are for the 600 Mpc box instead of the 1.5 Gpc box. Later when that's
+        # fixed we should just fix the data here.
+        self.k = np.genfromtxt(all_files[0])[:, 0]
+
+        self.coeval_ps = np.array([np.genfromtxt(fl)[:, 1] for fl in all_files])
+
+        self.spline = RectBivariateSpline(self.z, self.k, self.coeval_ps, ky=1)
 
 
 class Legacy21cmFAST(TheoryModel):
