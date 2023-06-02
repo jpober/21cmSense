@@ -113,7 +113,7 @@ class EOS2021(TheorySpline):
 
 
 class EOS2016Faint(TheorySpline):
-    """Theory model from EOS2021 (https://arxiv.org/abs/2110.13919)."""
+    """Theory model from EOS2016 Faint Galaxies."""
 
     use_littleh = False
 
@@ -133,7 +133,7 @@ class EOS2016Faint(TheorySpline):
 
 
 class EOS2016Bright(TheorySpline):
-    """Theory model from EOS2021 (https://arxiv.org/abs/2110.13919)."""
+    """Theory model from EOS2016 Bright Galaxies."""
 
     use_littleh = False
 
