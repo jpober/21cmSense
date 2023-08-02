@@ -46,7 +46,9 @@ jobs:
         run: |
           python -m pytest --cov=py21cmsense --cov-config=.coveragerc --cov-report xml:./coverage.xml --junitxml=test-reports/xunit.xml
 
-      - uses: codecov/codecov-action@v2
-        if: success()
-        with:
-          file: ./coverage.xml #optional
+      - name: Upload Coverage
+        run: |
+          pip install codecov-cli
+          codecovcli create-commit
+          codecovcli create-report
+          codecovcli do-upload
