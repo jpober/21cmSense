@@ -6,8 +6,6 @@
     :target: https://travis-ci.org/steven-murray/21cmSense
 .. image:: https://codecov.io/gh/steven-murray/21cmSense/branch/master/graph/badge.svg
   :target: https://codecov.io/gh/steven-murray/21cmSense
-.. image:: https://img.shields.io/badge/License-GPLv3-blue.svg
-  :target: https://www.gnu.org/licenses/gpl-3.0
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
   :target: https://github.com/psf/black
 .. image:: https://readthedocs.org/projects/21cmsense/badge/?version=latest
