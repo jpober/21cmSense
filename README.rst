@@ -71,7 +71,10 @@ and then::
 where the ``ARRAY_FILE`` is produced in the first step (and its location is printed during
 the execution).
 
-
+Running Tests
+=============
+An example of how to run tests is in the Github Workflow ``testsuite.yaml``. In short,
+just run ``pytest`` in the top-level directory after installing the package.
 
 Acknowledgment
 ==============

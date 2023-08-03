@@ -4,6 +4,7 @@ import copy
 import numpy as np
 import pickle
 from astropy import units
+from astropy.cosmology.units import littleh
 
 from py21cmsense import GaussianBeam, Observation, Observatory
 
@@ -39,7 +40,7 @@ def test_units(observatory):
     assert obs.Tsys.to("mK").unit == units.mK
     assert obs.Trms.to("mK").unit == units.mK
     assert 6 < obs.redshift < 12
-    assert obs.kparallel.unit == units.littleh / units.Mpc
+    assert obs.kparallel.unit == littleh / units.Mpc
     assert obs.total_integration_time.to("s").unit == units.s
     assert len(obs.ugrid_edges) == len(obs.ugrid) + 1
     assert obs.clone() == obs
@@ -64,3 +65,22 @@ def test_uvcov(observatory):
 def test_equality(observatory):
     new_observatory = copy.deepcopy(observatory)
     assert new_observatory == observatory
+
+
+def test_from_yaml(observatory):
+    obs = Observation.from_yaml(
+        {
+            "observatory": {
+                "antpos": np.random.random((20, 3)) * units.m,
+                "beam": {
+                    "class": "GaussianBeam",
+                    "frequency": 150 * units.MHz,
+                    "dish_size": 14 * units.m,
+                },
+            }
+        }
+    )
+    assert obs.observatory.antpos.shape == (20, 3)
+
+    with pytest.raises(ValueError, match="yaml_file must be a string filepath"):
+        Observation.from_yaml(3)

@@ -1,7 +1,7 @@
 Author
 ======
 
-Jonathan Pober [`<https://github.com/jpober>`_]: (jpober <at> uw <dot> edu)
+`Jonathan Pober <https://github.com/jpober`_: jonathan_pober@brown.edu
 
 Contributors
 ------------

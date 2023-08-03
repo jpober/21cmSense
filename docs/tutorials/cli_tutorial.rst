@@ -8,7 +8,7 @@ We will assume throughout that you are working in a directory containing the fol
 files::
 
     $ ls
-    mwa_phase2_compact_antpos.txt  observation_mwa.yml  observatory_mwa.yml  ps_EoS_z9.24.txt  sensitivity_mwa.yml
+    mwa_phase2_compact_antpos.txt  observation_mwa.yml  observatory_mwa.yml  sensitivity_mwa.yml
 
 
 These are all the configuration and data files we will need to perform the sensitivity
@@ -143,7 +143,7 @@ the same sky appears again, and these are assumed to be able to be added coheren
 
 Thus, the integration time for a given UV-cell *from a single baseline* is approximately
 
-    .. math:: n_{\rm days} * \sqrt{\frac{\rm hours}{\rm day} \frac{1}{t_{\rm LST}} t_{\rm LST}.
+    .. math:: n_{\rm days} * \sqrt{\frac{\rm hours}{\rm day} \frac{1}{t_{\rm LST}}}.
 
 In detail, this is modified slightly by rotation of the sky within an LST-bin, and how
 finely that duration is sampled (i.e. ``integration_time``), but these are second-order
@@ -180,7 +180,7 @@ Let's do this::
     computing UVWs: 100%|█████████████████████████████████████████████████████████████| 118/118 [00:03<00:00, 38.14times/s]
     gridding baselines: 100%|████████████████████████████████████████████████| 2586/2586 [00:00<00:00, 10307.26baselines/s]
     There are 2586 baseline types
-    Saving array file as ./drift_blmin0_blmax100_0.155GHz_arrayfile.pkl
+    Saving array file as ./blmin0_blmax100_0.155GHz_observation.h5
 
 As we can see, the code first finds baseline redundancies, up to the default tolerance.
 Doing this mostly acts to improve performance in the following baseline gridding,
@@ -192,53 +192,47 @@ the array phased to zenith, and it tracks around this point throughout the bin).
 adds the number of redundant baselines in that group to that particular UV cell.
 
 The important output information here is the array file, which we will have to use in
-our sensitivity analysis. This file is in fact a pickled version of the entire
-``Observation`` class, and can be loaded into a python interpreter. Essentially, it is
-just the UV grid.
+our sensitivity analysis. This file is in fact a serialized version of the entire
+``Observation`` class, and can be loaded into a python interpreter using ``hickle``,
+and its data can be read using ``h5py`` directly. Essentially, it is just the UV grid.
 
 Sensitivity
 ~~~~~~~~~~~
 The final configuration file required is ``sensitivity_mwa.yml``. Let's look at this::
 
     $ cat sensitivity_mwa.yml
-    observation: observation_hera.yml
+    observation: observation_mwa.yml
     horizon_buffer: !astropy.units.Quantity
         unit: !astropy.units.Unit {unit: 1/Mpc}
         value: 0.1
-    p21: !txt ps_EoS_z9.24.txt
+    theory_model: EOS2021
 
 
 Here the ``observation`` is of course the previously-specified file.
 Again, we could have specified the observation directly in this file, but it helps to
 separate it in order to run the gridding separately.
 
+.. note:: The ``observation`` entry to the YAML here is only used if ``calc-sense`` is
+    called without specifying the ``--array-file``. If the ``--array-file`` is specified
+    it fully defines the observation. If ``calc-sense`` is called without ``--array-file``,
+    then the full sensitivity calculation is done in one hit, without writing the
+    intermediate array file, using the given ``observation: `` parameter.
+
 The ``horizon_buffer`` specifies a region of kparallel which gets thrown out due to assumed
 high level of foregrounds, if ``foreground_model`` is ``moderate`` (which is the default).
 This is *in addition* to the horizon line. For small baselines, this effectively sets
 a "bar" below which all $k_{||}$ are thrown out. Its units are ``h/Mpc``.
 
-Finally, ``p21`` defines a fiducial EoR power spectrum model used to determine the cosmic
-variance (which is added in quadrature to the thermal variance). Note that cosmic variance
-doesn't average down over time and baselines, but it does average down incoherently over
-spherical modes (i.e. ``21cmSense`` assumes isotropy of the cosmic signal).
-
-``p21`` is not a parameter that is passable to ``Sensitivity``, which instead takes a
-vector of ``k`` and ``delta``. When reading from a YAML configuration, it takes a ``p21``,
-which specifies a *file* containing this information. By default, output power spectra
-from 21cmFAST are of the correct format to be read here, though one can pass a ``.npz``
-or pickle file. To obtain the power spectrum file that we use, we use the excellent
-`EoS project <http://homepage.sns.it/mesinger/EOS.html>`_. In particular, we use the
-``z=9.24`` power spectrum using the fiducial faint-galaxies model, since this is the
-closest redshift to our observation at 155 MHz::
-
-    $ wget https://drive.google.com/open?id=0BzlDUW4CoPOGVE5tUXdnckF0UjA -o ps_EoS_z9.24.txt
-
-.. warning:: Note that if this parameter is not set, ``21cmSense`` uses a default ``21cmFAST`` power
-             spectrum at ``z=9.5``, which may not reflect your observation!!
+Finally, ``theory_model`` specifies a theoretical model to use in order to calculate the
+sample (cosmic) variance. The default value is to use
+`EOS2021 <https://scholar.harvard.edu/julianbmunoz/eos-21>`_, which is specified
+over a broad range of redshifts and scales. This can be changed to your own theoretical
+model quite simply (see the `FAQs <https://21cmsense.readthedocs.io/en/latest/faqs.html>`_
+for more information).
 
 Now we run the sensitivity analysis::
 
-    $ sense calc-sense sensitivity_mwa.yml --array-file drift_blmin0_blmax100_0.155GHz_arrayfile.pkl
+    $ sense calc-sense sensitivity_mwa.yml --array-file blmin0_blmax100_0.155GHz_observation.h5
     [14:03:33] WARNING  The maximum k value is being restricted by the theoretical signal model. Losing ~23 bins.                                                                                     sensitivity.py:212
                INFO     Used 76 bins between 0.05390475507505667 littleh / Mpc and 4.096761385704307 littleh / Mpc                                                                                            cli.py:139
                INFO     Getting Thermal Variance                                                                                                                                                      sensitivity.py:367
@@ -252,7 +246,7 @@ Now we run the sensitivity analysis::
                INFO     Significance of detection: 0.12369660966702764
 
 
-This command also outputs a file ``moderate_155.000 MHz.npz``, which contains the
+This command also outputs a file ``moderate_155.000 MHz.h5``, which contains the
 standard deviation of the dimensionless power spectrum.
 The output file also includes the 1D k values corresponding
 to the sensitivity arrays.

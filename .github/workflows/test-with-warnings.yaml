@@ -1,10 +1,10 @@
-name: Test Suite
-on: [push, pull_request]
+name: Warnings Test
+on: [pull_request]
 
 
 jobs:
   tests:
-    name: Test Suite
+    name: Test With Warnings
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: [3.9, "3.10"]
+        python-version: ["3.10"]
     steps:
       - uses: actions/checkout@master
         with:
@@ -44,9 +44,4 @@ jobs:
 
       - name: Run Tests
         run: |
-          python -m pytest --cov=py21cmsense --cov-config=.coveragerc --cov-report xml:./coverage.xml --junitxml=test-reports/xunit.xml
-
-      - uses: codecov/codecov-action@v2
-        if: success()
-        with:
-          file: ./coverage.xml #optional
+          python -m pytest -W error

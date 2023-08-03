@@ -1,8 +1,7 @@
 """Utility functions for 21cmSense."""
 import numpy as np
-import tqdm
 from astropy import units as un
-from astropy.coordinates import ICRS, EarthLocation, SkyCoord
+from astropy.coordinates import EarthLocation, SkyCoord
 from astropy.time import Time
 from pyuvdata import utils as uvutils
 
@@ -33,87 +32,10 @@ def find_nearest(array, value):
     return np.abs(array.reshape(-1, 1) - value).argmin(0)
 
 
-def trunc(x, ndecimals=0):
-    """Truncate a floating point number to a given number of decimals."""
-    decade = 10**ndecimals
-    return np.trunc(x * decade) / decade
-
-
-def phase(jd, ra, dec, telescope_location, uvws0):
-    """
-    Compute UVWs phased to a given RA/DEC at a particular epoch.
-
-    This function was copied from the pyuvdata.UVData.phase method, and modified to be
-    simpler.
-
-    Parameters
-    ----------
-    jd : float or array_like of float
-        The Julian date of the observation.
-    ra : float
-        The ra to phase to in radians.
-    dec : float
-        The dec to phase to in radians.
-    telescope_location : :class:`astropy.coordinates.EarthLocation`
-        The location of the reference point of the telescope, in geodetic frame (i.e.
-        it has lat, lon, height attributes).
-    uvws0 : array
-        The UVWs when phased to zenith.
-
-    Returns
-    -------
-    uvws : array
-        Array of the same shape as `uvws0`, with entries modified to the new phase
-        center.
-    """
-    frame_phase_center = SkyCoord(ra=ra, dec=dec, unit="radian", frame="icrs")
-
-    obs_time = Time(np.atleast_1d(jd), format="jd")
-
-    itrs_telescope_location = telescope_location.get_itrs(obstime=obs_time)
-
-    frame_telescope_location = itrs_telescope_location.transform_to(ICRS)
-    frame_telescope_location.representation_type = "cartesian"
-
-    uvw_ecef = uvutils.ECEF_from_ENU(
-        uvws0,
-        telescope_location.lat.rad,
-        telescope_location.lon.rad,
-        telescope_location.height,
-    )
-    unique_times, r_inds = np.unique(obs_time, return_inverse=True)
-    uvws = np.zeros((uvw_ecef.shape[0], unique_times.size, 3), dtype=np.float64)
-    for ind, jd in tqdm.tqdm(
-        enumerate(unique_times),
-        desc="computing UVWs",
-        total=len(unique_times),
-        unit="times",
-        disable=not config.PROGRESS or unique_times.size == 1,
-    ):
-        itrs_uvw_coord = SkyCoord(
-            x=uvw_ecef[:, 0] * un.m,
-            y=uvw_ecef[:, 1] * un.m,
-            z=uvw_ecef[:, 2] * un.m,
-            frame="itrs",
-            obstime=jd,
-        )
-        frame_uvw_coord = itrs_uvw_coord.transform_to("icrs")
-
-        # this takes out the telescope location in the new frame,
-        # so these are vectors again
-        frame_rel_uvw = (
-            frame_uvw_coord.cartesian.get_xyz().value.T
-            - frame_telescope_location[ind].cartesian.get_xyz().value
-        )
-
-        uvws[:, ind, :] = uvutils.phase_uvw(
-            frame_phase_center.ra.rad, frame_phase_center.dec.rad, frame_rel_uvw
-        )
-    return uvws[:, r_inds, :]
-
-
 @un.quantity_input
-def phase_past_zenith(time_past_zenith: un.day, uvws0: np.ndarray, latitude: un.rad):
+def phase_past_zenith(
+    time_past_zenith: un.day, bls_enu: np.ndarray, latitude, use_apparent: bool = True
+):
     """Compute UVWs phased to a point rotated from zenith by a certain amount of time.
 
     This function specifies a longitude and time of observation without loss of
@@ -151,12 +73,39 @@ def phase_past_zenith(time_past_zenith: un.day, uvws0: np.ndarray, latitude: un.
     )
     zenith_coord = zenith_coord.transform_to("icrs")
 
-    # Get the RA that was the meridian at jd - time_past_zenith
+    obstimes = zenith_coord.obstime + time_past_zenith
+    lsts = obstimes.sidereal_time("apparent", longitude=0.0).rad
 
-    return phase(
-        jd + time_past_zenith.value,
-        zenith_coord.ra.rad,
-        zenith_coord.dec.rad,
-        telescope_location,
-        uvws0,
+    if not hasattr(lsts, "__len__"):
+        lsts = np.array([lsts])
+
+    if use_apparent:
+        app_ra, app_dec = uvutils.calc_app_coords(
+            zenith_coord.ra.to_value("rad"),
+            zenith_coord.dec.to_value("rad"),
+            time_array=obstimes.utc.jd,
+            telescope_loc=telescope_location,
+        )
+
+        app_ra = np.tile(app_ra, len(bls_enu))
+        app_dec = np.tile(app_dec, len(bls_enu))
+
+    else:
+        app_ra = zenith_coord.ra.to_value("rad") * np.ones(len(bls_enu) * len(lsts))
+        app_dec = zenith_coord.dec.to_value("rad") * np.ones(len(bls_enu) * len(lsts))
+
+    # Now make everything nbls * ntimes big.
+    _lsts = np.tile(lsts, len(bls_enu))
+    uvws = np.repeat(bls_enu, len(lsts), axis=0)
+
+    out = uvutils.calc_uvw(
+        app_ra=app_ra,
+        app_dec=app_dec,
+        lst_array=_lsts,
+        uvw_array=uvws,
+        telescope_lat=latitude.to_value("rad"),
+        telescope_lon=0.0,
+        from_enu=True,
+        use_ant_pos=False,
     )
+    return out.reshape((len(bls_enu), len(lsts), 3))

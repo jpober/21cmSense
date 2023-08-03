@@ -5,10 +5,10 @@ import attr
 import numpy as np
 from astropy import constants as cnst
 from astropy import units as un
-from astropy.cosmology.units import littleh
+from astropy.cosmology.units import littleh, redshift
 from typing import Any, Callable, Type, Union
 
-un.add_enabled_units([littleh])
+un.add_enabled_units([littleh, redshift])
 
 
 class UnitError(ValueError):

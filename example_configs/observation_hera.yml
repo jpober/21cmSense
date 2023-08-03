@@ -12,3 +12,4 @@ observatory: observatory_hera.yml
 integration_time: !astropy.units.Quantity
   unit: !astropy.units.Unit {unit: s}
   value: 10.7
+n_channels: 60

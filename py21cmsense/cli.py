@@ -6,6 +6,7 @@ import os
 import pickle
 import tempfile
 from astropy.io.misc import yaml
+from hickle import hickle
 from os import path
 from pathlib import Path
 from rich.logging import RichHandler
@@ -51,14 +52,13 @@ def grid_baselines(configfile, direc, outfile):
 
     if outfile is None:
         outfile = Path(direc) / (
-            f"drift_blmin{obs.bl_min.value:.3f}_blmax{obs.bl_max.value:.3f}_"
-            f"{obs.frequency.to('GHz').value:.3f}GHz_arrayfile.pkl"
+            f"blmin{obs.bl_min.value:.3f}_blmax{obs.bl_max.value:.3f}_"
+            f"{obs.frequency.to('GHz').value:.3f}GHz_observation.h5"
         )
     elif not Path(outfile).is_absolute():
         outfile = Path(direc) / outfile
 
-    with open(outfile, "wb") as fl:
-        pickle.dump(obs, fl)
+    hickle.dump(obs, outfile)
 
     logger.info(f"There are {len(obs.baseline_groups)} baseline types")
     logger.info(f"Saving array file as {outfile}")
@@ -123,9 +123,15 @@ def calc_sense(
     This is the primary command of 21cmSense, and can be run independently for a
     complete sensitivity calculation.
     """
+    if plot and not HAVE_MPL:  # pragma: no cover
+        raise click.ClickException(
+            "matplotlib is required for plotting, but it is not installed. "
+            "Use --no-plot to disable plotting."
+        )
+
     # If given an array-file, overwrite the "observation" parameter
-    # in the config with the pickled array file, which has already
-    # calculated the uv_coverage, hopefully.
+    # in the config with the hickled array file, which has already
+    # calculated the uv_coverage.
     if array_file is not None:
         with open(configfile) as fl:
             cfg = yaml.load(fl)
@@ -140,7 +146,9 @@ def calc_sense(
         f"Used {len(sensitivity.k1d)} bins between "
         f"{sensitivity.k1d.min()} and {sensitivity.k1d.max()}"
     )
-    sensitivity.write(filename=fname, thermal=thermal, sample=samplevar, prefix=prefix)
+    sensitivity.write(
+        filename=fname, thermal=thermal, sample=samplevar, direc=direc, prefix=prefix
+    )
 
     if write_significance:
         sig = sensitivity.calculate_significance(thermal=thermal, sample=samplevar)
@@ -150,8 +158,8 @@ def calc_sense(
         fig = sensitivity.plot_sense_1d(thermal=thermal, sample=samplevar)
         if plot_title:
             plt.title(plot_title)
-        prefix + "_" if prefix else ""
+        f"{prefix}_" if prefix else ""
         fig.savefig(
-            f"{prefix}{sensitivity.foreground_model}_"
+            f"{direc}/{prefix}{sensitivity.foreground_model}_"
             f"{sensitivity.observation.frequency:.3f}.png"
         )

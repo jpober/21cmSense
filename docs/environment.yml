@@ -1,0 +1,27 @@
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - numpy<1.22
+  - scipy
+  - future
+  - click
+  - tqdm
+  - pyyaml
+  - astropy>=5
+  - methodtools
+  - pyuvdata
+  - cached_property
+  - rich
+  - attrs
+  - sphinx>=5.0
+  - numpydoc
+  - nbsphinx
+  - ipython
+  - pandoc
+  - pip
+  - python=3.10
+  - setuptools_scm
+  - pip:
+    - furo
+    - sphinx_design

@@ -1,5 +1,5 @@
-Tutorials and FAQs
-==================
+Tutorials
+=========
 
 The following introductory tutorials will help you get started with ``21cmSense``:
 
@@ -8,11 +8,5 @@ The following introductory tutorials will help you get started with ``21cmSense`
 
    tutorials/getting_started
    tutorials/understanding_21cmsense
-
-If you've covered the tutorials and still have questions about "how to do stuff" in
-``21cmSense``, consult the FAQs:
-
-.. toctree::
-   :maxdepth: 2
-
-   faqs
+   tutorials/cli_tutorial
+   tutorials/reproducing_pober_2015

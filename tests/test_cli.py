@@ -49,52 +49,24 @@ def sensitivity_config(tmpdirec, observation_config):
     return path.join(tmpdirec, "sensitivity.yml")
 
 
-@pytest.fixture(scope="module")
-def sensitivity_config_defined_p21(tmpdirec, observation_config, sensitivity_config):
-    with open(sensitivity_config) as fl:
-        sensitivity = yaml.load(fl)
-
-    pfile = path.join(
-        example_configs,
-        "../py21cmsense/data/ps_no_halos_nf0.521457_z9.50_useTs0_zetaX-1.0e+00_200_400Mpc_v2",
+def test_gridding_baselines(runner, observation_config, tmpdirec):
+    output = runner.invoke(
+        cli.main, ["grid-baselines", observation_config, "--direc", str(tmpdirec)]
     )
-
-    sensitivity["observation"] = observation_config
-
-    with open(path.join(tmpdirec, "sensitivity_with_p21.yml"), "w") as fl:
-        dump(sensitivity, fl)
-
-        fl.write(f"p21: !txt {pfile}\n")
-
-    return path.join(tmpdirec, "sensitivity_with_p21.yml")
-
-
-def test_gridding_baselines(runner, observation_config):
-
-    output = runner.invoke(cli.main, ["grid-baselines", observation_config])
     if output.exception:
         traceback.print_exception(*output.exc_info)
 
     assert output.exit_code == 0
 
 
-def test_calc_sense(runner, sensitivity_config):
-    output = runner.invoke(cli.main, ["calc-sense", sensitivity_config])
+def test_calc_sense(runner, sensitivity_config, tmpdirec):
+    output = runner.invoke(
+        cli.main, ["calc-sense", sensitivity_config, "--direc", str(tmpdirec)]
+    )
     if output.exception:
         traceback.print_exception(*output.exc_info)
 
     assert output.exit_code == 0
-
-
-def test_calc_sense_with_p21(runner, sensitivity_config_defined_p21):
-    output = runner.invoke(cli.main, ["calc-sense", sensitivity_config_defined_p21])
-    if output.exception:
-        traceback.print_exception(*output.exc_info)
-
-    assert output.exit_code == 0
-
-    # ensure a plot was created
-    assert glob.glob("*.png")
 
 
 def test_both(runner, tmpdirec, observation_config, sensitivity_config):
@@ -106,7 +78,7 @@ def test_both(runner, tmpdirec, observation_config, sensitivity_config):
             "--direc",
             tmpdirec,
             "--outfile",
-            "arrayfile.pkl",
+            "arrayfile.h5",
         ],
     )
 
@@ -119,7 +91,7 @@ def test_both(runner, tmpdirec, observation_config, sensitivity_config):
             "calc-sense",
             sensitivity_config,
             "--array-file",
-            path.join(tmpdirec, "arrayfile.pkl"),
+            path.join(tmpdirec, "arrayfile.h5"),
             "--plot-title",
             "MYTITLE",
         ],

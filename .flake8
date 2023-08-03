@@ -6,9 +6,16 @@ ignore =
     W503
     F403
     F401
-    D401  # Imperative mood -- doesn't work for cached-property.
-    N802  # TODO: remove this (function name should be lower-case)
-    B019  # no using lru_cache on methods
+    # Imperative mood -- doesn't work for cached-property.
+    D401
+    # TODO: remove this (function name should be lower-case)
+    N802
+    # no using lru_cache on methods
+    B019
+    # logging uses f-string
+    G004
+    # no docstring in __init__
+    D107
 max-line-length = 88
 max-complexity = 18
 rst-roles =

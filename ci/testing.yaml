@@ -7,7 +7,7 @@ dependencies:
   - cached_property
   - click
   - future
-  - numpy<1.22
+  - numpy
   - pip
   - pre-commit
   - pyyaml

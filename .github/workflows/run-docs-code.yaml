@@ -1,11 +1,11 @@
-name: Test Suite
+name: Run Demo
 on: [push, pull_request]
 
 
 jobs:
   tests:
-    name: Test Suite
-    runs-on: ${{ matrix.os }}
+    name: Run Demo
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash -l {0}
@@ -14,8 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        python-version: [3.9, "3.10"]
+        demo: ["getting_started", "understanding_21cmsense", "reproducing_pober_2015"]
     steps:
       - uses: actions/checkout@master
         with:
@@ -28,7 +27,7 @@ jobs:
           mamba-version: "*"
           channels: conda-forge,defaults
           channel-priority: true
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.10"
           environment-file: ci/${{ env.ENV_NAME }}.yaml
           activate-environment: ${{ env.ENV_NAME }}
 
@@ -37,16 +36,21 @@ jobs:
           conda info
           python --version
 
-      - name: Install Test Deps
+      - name: Install Deps
         run: |
-          pip install .[test]
+          pip install .
+          pip install papermill ipykernel
           conda list
 
-      - name: Run Tests
-        run: |
-          python -m pytest --cov=py21cmsense --cov-config=.coveragerc --cov-report xml:./coverage.xml --junitxml=test-reports/xunit.xml
+      - name: Install ipykernel
+        run: python -m ipykernel install --user --name sense --display-name "sense"
 
-      - uses: codecov/codecov-action@v2
-        if: success()
+      - name: Run Notebook
+        run: |
+          papermill -k sense docs/tutorials/${{ matrix.demo }}.ipynb output-${{ matrix.demo }}.ipynb
+
+      - uses: actions/upload-artifact@v3
+        if: always()
         with:
-          file: ./coverage.xml #optional
+          name: ${{ matrix.demo }}
+          path: output-${{ matrix.demo }}.ipynb

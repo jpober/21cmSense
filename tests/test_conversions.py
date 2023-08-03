@@ -44,3 +44,11 @@ def test_X2Y():
     cnv.X2Y(10).to("Mpc^3 / (littleh^3 sr GHz)")
     cosmo = Planck15.clone(H0=Planck15.H0 / 1.1)
     assert cnv.X2Y(10, cosmo) < cnv.X2Y(10)
+
+
+def test_approx_dL_dth():
+    assert np.isclose(cnv.dL_dth(10), cnv.dL_dth(10.0, approximate=True), rtol=0.02)
+
+
+def test_approx_dL_df():
+    assert np.isclose(cnv.dL_df(10), cnv.dL_df(10.0, approximate=True), rtol=0.02)

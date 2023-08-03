@@ -32,5 +32,6 @@ def test_gaussian_beam():
     assert bm.sq_area < bm.area
     assert bm.fwhm > bm.width
     assert bm.first_null < np.pi * units.rad / 2
+    assert bm.wavelength.unit == units.m
 
     assert bm.new() == bm

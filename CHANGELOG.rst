@@ -5,10 +5,15 @@ Changelog
 Unreleased
 ==========
 
+Documentation
+-------------
+- Added a tutorial that reproduces Pober (2015) HERA memo results.
+
 Fixed
 -----
 * Bug in ``dL_df`` (missing square).
-* Use ``yaml.SafeLoader`` instead of ``yaml.FullyLoader``.
+* Use ``yaml.SafeLoader`` instead of ``yaml.FullLoader``.
+* Bug when averaging from 2D to 1D that got about half the sensitivity.
 
 Changed
 -------
@@ -29,6 +34,7 @@ Features
   a closer resemblance to the original 21cmSense v1.
 * New ``calculate_sensitivity_2d_grid`` method that makes it easier to obtain a gridded
   cylindrical power spectrum sensitivity for arbitrary bins.
+* ``antpos.hera()`` can now return a split-core configuration, and also outriggers.
 
 v2.0.0
 ======

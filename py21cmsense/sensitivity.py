@@ -1,29 +1,32 @@
 """
-Classes fro which sensitivities can be obtained.
+Classes from which sensitivities can be obtained.
 
 This module modularizes the previous version's `calc_sense.py`, and enables
-multiple sensitivity kinds to be defined. By default, a PowerSpectrum sensitivity class
-is provided, which offers the same results as previous versions.
+multiple sensitivity kinds to be defined. By default, a :class:`PowerSpectrum`
+sensitivity class is provided, which offers the same results as previous versions.
+In the future, we may provide things like ``ImagingSensitivity`` or
+``WaveletSensitivity`` for example.
 """
 from __future__ import annotations
 
 import attr
 import h5py
+import hickle
+import importlib
 import logging
 import numpy as np
-import os
-import pickle
 import tqdm
 from astropy import units as un
+from astropy.cosmology import LambdaCDM
 from astropy.cosmology.units import littleh, with_H0
 from astropy.io.misc import yaml
 from attr import validators as vld
 from cached_property import cached_property
 from collections.abc import Mapping
+from hickleable import hickleable
 from methodtools import lru_cache
 from os import path
 from pathlib import Path
-from scipy import interpolate
 from typing import Callable
 
 from . import _utils as ut
@@ -31,31 +34,12 @@ from . import config
 from . import conversions as conv
 from . import observation as obs
 from . import types as tp
-
-
-def _kconverter(val, allow_unitless=False):
-    if hasattr(val, "unit"):
-        return val.to(littleh / un.Mpc, with_H0(config.COSMO.H0))
-    if not allow_unitless:
-        raise ValueError("no units supplied!")
-    # Assume it has the 1/Mpc units (default from 21cmFAST)
-    return (val / un.Mpc).to(littleh / un.Mpc, with_H0(config.COSMO.H0))
-
-
-# Get default k, power
-_K21_DEFAULT, _D21_DEFAULT = np.genfromtxt(
-    os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "data/ps_no_halos_nf0.521457_z9.50_useTs0_zetaX-1.0e+00_200_400Mpc_v2",
-    )
-).T[:2]
-
-_K21_DEFAULT = _kconverter(_K21_DEFAULT, allow_unitless=True)
-_D21_DEFAULT <<= un.mK**2
+from .theory import _ALL_THEORY_POWER_SPECTRA, EOS2021, TheoryModel
 
 logger = logging.getLogger(__name__)
 
 
+@hickleable(evaluate_cached_properties=True)
 @attr.s(kw_only=True)
 class Sensitivity:
     """
@@ -101,12 +85,11 @@ class Sensitivity:
 
         if obsfile.endswith(".yml"):
             observation = obs.Observation.from_yaml(obsfile)
-        elif obsfile.endswith(".pkl"):
-            with open(obsfile, "rb") as fl:
-                observation = pickle.load(fl)
+        elif h5py.is_hdf5(obsfile):
+            observation = hickle.load(obsfile)
         else:
             raise ValueError(
-                "observation must be a filename with extension .yml or .pkl"
+                "observation must be a filename with extension .yml or .h5"
             )
 
         return klass(observation=observation, **data)
@@ -115,11 +98,22 @@ class Sensitivity:
         """Clone the object with new parameters."""
         return attr.evolve(self, **kwargs)
 
+    @property
+    def cosmo(self) -> LambdaCDM:
+        """The cosmology to use in the sensitivity calculations."""
+        return self.observation.cosmo
+
 
 @attr.s(kw_only=True)
 class PowerSpectrum(Sensitivity):
     """
     A Power Spectrum sensitivity calculator.
+
+    Note that the sensitivity calculation contains two major parts: thermal variance
+    and sample variance (aka cosmic variance). The latter requires a model of the power
+    spetrum itself, which you should provide via ``k_21`` and ``delta_21``.
+    Remember that the power spectrum is redshift dependent, and so should be supplied
+    differently at each frequency being calculated.
 
     Parameters
     ----------
@@ -140,31 +134,21 @@ class PowerSpectrum(Sensitivity):
         A function that takes a single kperp and an array of kpar, and returns a boolean
         array specifying which of the k's are useable after accounting for systematics.
         that is, it returns False for k's affected by systematics.
+
     """
 
-    horizon_buffer: tp.Wavenumber = attr.ib(
-        default=0.1 * littleh / un.Mpc,
-        validator=(
-            tp.vld_unit(littleh / un.Mpc, with_H0(config.COSMO.H0)),
-            ut.nonnegative,
-        ),
-        converter=_kconverter,
-    )
+    horizon_buffer: tp.Wavenumber = attr.ib(default=0.1 * littleh / un.Mpc)
     foreground_model: str = attr.ib(
         default="moderate", validator=vld.in_(["moderate", "optimistic"])
     )
-    k_21: tp.Wavenumber = attr.ib(
-        _K21_DEFAULT,
-        validator=tp.vld_unit(littleh / un.Mpc, with_H0(config.COSMO.H0)),
-        converter=_kconverter,
-        eq=attr.cmp_using(np.array_equal),
-    )
-    delta_21: tp.Delta = attr.ib(
-        _D21_DEFAULT,
-        validator=(tp.vld_unit(un.mK**2)),
-        eq=attr.cmp_using(np.array_equal),
-    )
+    theory_model: TheoryModel = attr.ib()
+
     systematics_mask: Callable | None = attr.ib(None)
+
+    @horizon_buffer.validator
+    def _horizon_buffer_validator(self, att, val):
+        tp.vld_unit(littleh / un.Mpc, with_H0(self.cosmo.H0))(self, att, val)
+        ut.nonnegative(self, att, val)
 
     @classmethod
     def from_yaml(cls, yaml_file) -> Sensitivity:
@@ -176,10 +160,20 @@ class PowerSpectrum(Sensitivity):
         """
         data = cls._load_yaml(yaml_file)
 
-        p21 = data.pop("p21", None)
-        if p21 is not None:
-            data["k_21"] = p21[:, 0] << 1 / un.Mpc
-            data["delta_21"] = p21[:, 1] << un.mK**2
+        if "plugins" in data:
+            if not isinstance(data["plugins"], list):
+                raise ValueError(
+                    "plugins in YAML file must be a list of modules."
+                )  # pragma: no cover
+
+            for mdl in data.pop("plugins"):
+                try:
+                    importlib.import_module(mdl)
+                except Exception as e:
+                    raise ImportError(f"Could not import {mdl}") from e
+
+        if "theory_model" in data:
+            data["theory_model"] = _ALL_THEORY_POWER_SPECTRA[data["theory_model"]]()
 
         if isinstance(yaml_file, str):
             obsfile = path.join(path.dirname(yaml_file), data.pop("observation"))
@@ -190,62 +184,36 @@ class PowerSpectrum(Sensitivity):
 
         return super().from_yaml(data)
 
-    @k_21.validator
-    def _p21k_validator(self, att, val):
-        assert val.ndim == 1
+    @theory_model.default
+    def _theory_model_default(self):
+        return EOS2021()
 
-    @delta_21.validator
-    def _delta21_validator(self, att, val):
-        assert val.ndim == 1
-        assert val.shape == self.k_21.shape
-
-    @cached_property
-    def p21(self):
-        """An interpolation function defining the cosmological power spectrum."""
-        fnc = interpolate.interp1d(
-            self.k_21.to_value(littleh / un.Mpc),
-            self.delta_21.to_value(un.mK**2),
-            kind="linear",
-        )
-        return lambda k: fnc(k) * un.mK**2
-
-    @cached_property
-    def k_min(self) -> tp.Wavenumber:
-        """Minimum k value to use in estimates."""
-        return self.k_21.min()
-
-    @cached_property
-    def k_max(self) -> tp.Wavenumber:
-        """Maximum k value to use in estimates."""
-        return self.k_21.max()
+    @theory_model.validator
+    def _theory_model_validator(self, att, val):
+        if not isinstance(val, TheoryModel):
+            raise ValueError("The theory_model must be an instance of TheoryModel")
 
     @cached_property
     def k1d(self) -> tp.Wavenumber:
         """1D array of wavenumbers for which sensitivities will be generated."""
-        delta = conv.dk_deta(self.observation.redshift) / self.observation.bandwidth
-        if self.k_max.value < delta.value * self.observation.n_channels:
-            logger.warning(
-                "The maximum k value is being restricted by the theoretical signal "
-                "model. Losing ~"
-                f"{int((delta.value * self.observation.n_channels - self.k_max.value)/delta.value)}"
-                " bins."
+        delta = (
+            conv.dk_deta(
+                self.observation.redshift,
+                self.cosmo,
+                approximate=self.observation.use_approximate_cosmo,
             )
-        if self.k_min > delta:
-            logger.warning(
-                "The minimum k value is being restricted by the theoretical signal "
-                f"model. Losing ~{int((self.k_min - delta)/delta)} bins between {delta}"
-                f" and {self.k_min}."
-            )
-            mn = self.k_min
-        else:
-            mn = delta
-        assert delta.unit == self.k_max.unit
-        return np.arange(mn.value, self.k_max.value, delta.value) * delta.unit
+            / self.observation.bandwidth
+        )
+        dv = delta.value
+        return np.arange(dv, dv * self.observation.n_channels, dv) * delta.unit
 
     @cached_property
     def X2Y(self) -> un.Quantity[un.Mpc**3 / littleh**3 / un.steradian / un.GHz]:
         """Cosmological scaling factor X^2*Y (eg. Parsons 2012)."""
-        return conv.X2Y(self.observation.redshift)
+        return conv.X2Y(
+            self.observation.redshift,
+            approximate=self.observation.use_approximate_cosmo,
+        )
 
     @cached_property
     def uv_coverage(self) -> np.ndarray:
@@ -266,7 +234,9 @@ class PowerSpectrum(Sensitivity):
 
     def power_normalisation(self, k: tp.Wavenumber) -> float:
         """Normalisation constant for power spectrum."""
+        assert hasattr(k, "unit")
         assert k.unit.is_equivalent(littleh / un.Mpc)
+
         return (
             self.X2Y
             * self.observation.observatory.beam.b_eff
@@ -285,11 +255,11 @@ class PowerSpectrum(Sensitivity):
 
     def sample_noise(self, k_par: tp.Wavenumber, k_perp: tp.Wavenumber) -> tp.Delta:
         """Sample variance contribution at a particular k mode."""
-        k = np.sqrt(k_par**2 + k_perp**2)
-        vals = np.full(k.size, np.inf) * un.mK**2
-        good_ks = np.logical_and(k >= self.k_min, k <= self.k_max)
-        vals[good_ks] = self.p21(k[good_ks])
-        return vals
+        k = np.sqrt(k_par**2 + k_perp**2).to_value(
+            littleh / un.Mpc if self.theory_model.use_littleh else un.Mpc**-1,
+            with_H0(self.cosmo.H0),
+        )
+        return self.theory_model.delta_squared(self.observation.redshift, k)
 
     @cached_property
     def _nsamples_2d(
@@ -315,7 +285,11 @@ class PowerSpectrum(Sensitivity):
                 continue
 
             umag = np.sqrt(u**2 + v**2)
-            k_perp = umag * conv.dk_du(self.observation.redshift)
+            k_perp = umag * conv.dk_du(
+                self.observation.redshift,
+                self.cosmo,
+                approximate=self.observation.use_approximate_cosmo,
+            )
 
             hor = self.horizon_limit(umag)
 
@@ -429,15 +403,6 @@ class PowerSpectrum(Sensitivity):
         assert np.all(np.diff(kperp_edges) > 0)
         assert np.all(np.diff(kpar_edges) > 0)
 
-        if np.sqrt(kpar_edges.min() ** 2 + kperp_edges.min() ** 2) < self.k_min:
-            logger.warning(
-                "The minimum kbin is being restricted by the theoretical model. Some values will be zero."
-            )
-        if np.sqrt(kpar_edges.max() ** 2 + kperp_edges.max() ** 2) > self.k_max:
-            logger.warning(
-                "The maximum kbin is being restricted by the theoretical model. Some values will be zero."
-            )
-
         for k_perp in tqdm.tqdm(
             sense.keys(),
             desc="averaging to 2D grid",
@@ -450,11 +415,8 @@ class PowerSpectrum(Sensitivity):
             # Get the kperp bin it's in.
             kperp_indx = np.where(k_perp >= kperp_edges)[0][-1]
 
-            k = np.sqrt(self.observation.kparallel**2 + k_perp**2)
-            good_ks = np.logical_and(self.k_min <= k, k <= self.k_max)
-
-            kpar_indx = np.digitize(k, kpar_edges) - 1
-            good_ks &= kpar_indx >= 0
+            kpar_indx = np.digitize(self.observation.kparallel, kpar_edges) - 1
+            good_ks = kpar_indx >= 0
             good_ks &= kpar_indx < len(kpar_edges) - 1
 
             sense2d_inv[kperp_indx][kpar_indx[good_ks]] += (
@@ -482,7 +444,13 @@ class PowerSpectrum(Sensitivity):
             Horizon limit, in h/Mpc.
         """
         horizon = (
-            conv.dk_deta(self.observation.redshift) * umag / self.observation.frequency
+            conv.dk_deta(
+                self.observation.redshift,
+                self.cosmo,
+                approximate=self.observation.use_approximate_cosmo,
+            )
+            * umag
+            / self.observation.frequency
         )
         # calculate horizon limit for baseline of length umag
         if self.foreground_model in ["moderate", "pessimistic"]:
@@ -506,13 +474,11 @@ class PowerSpectrum(Sensitivity):
         ):
             k = np.sqrt(self.observation.kparallel**2 + k_perp**2)
 
-            good_ks = np.logical_and(self.k_min <= k, k <= self.k_max)
-            good_ks &= k >= k1d.min()
+            good_ks = k >= k1d.min()
             good_ks &= k < k1d.max()
 
-            sense1d_inv[ut.find_nearest(k1d, k[good_ks])] += (
-                1.0 / sense[k_perp][good_ks] ** 2
-            )
+            for cnt, kbin in enumerate(ut.find_nearest(k1d, k[good_ks])):
+                sense1d_inv[kbin] += 1.0 / sense[k_perp][good_ks][cnt] ** 2
 
         # invert errors and take square root again for final answer
         sense1d = np.ones(sense1d_inv.shape) * un.mK**2 * np.inf
@@ -549,7 +515,11 @@ class PowerSpectrum(Sensitivity):
     @property
     def delta_squared(self) -> tp.Delta:
         """The fiducial 21cm power spectrum evaluated at :attr:`k1d`."""
-        return self.p21(self.k1d)
+        k = self.k1d.to_value(
+            littleh / un.Mpc if self.theory_model.use_littleh else un.Mpc**-1,
+            with_H0(self.cosmo.H0),
+        )
+        return self.theory_model.delta_squared(self.observation.redshift, k)
 
     @lru_cache()
     def calculate_significance(
@@ -570,13 +540,13 @@ class PowerSpectrum(Sensitivity):
         float :
             Significance of detection (in units of sigma).
         """
-        mask = np.logical_and(self.k1d >= self.k_min, self.k1d <= self.k_max)
         sense1d = self.calculate_sensitivity_1d(thermal=thermal, sample=sample)
 
-        snr = self.delta_squared[mask] / sense1d[mask]
+        snr = self.delta_squared / sense1d
         return np.sqrt(float(np.dot(snr, snr.T)))
 
     def plot_sense_2d(self, sense2d: dict[tp.Wavenumber, tp.Delta]):
+        # sourcery skip: raise-from-previous-error
         """Create a colormap plot of the sensitivity un UV bins."""
         try:
             import matplotlib.pyplot as plt
@@ -609,6 +579,7 @@ class PowerSpectrum(Sensitivity):
         thermal: bool = True,
         sample: bool = True,
         prefix: str = None,
+        direc: str | Path = ".",
     ) -> Path:
         """Save sensitivity results to HDF5 file.
 
@@ -618,17 +589,21 @@ class PowerSpectrum(Sensitivity):
             The path to the file that is written.
         """
         out = self._get_all_sensitivity_combos(thermal, sample)
-        prefix = prefix + "_" if prefix else ""
+        prefix = f"{prefix}_" if prefix else ""
         if filename is None:
             filename = Path(
-                f"{prefix}{self.foreground_model}_{self.observation.frequency:.3f}.h5"
+                f"{prefix}{self.foreground_model}_{self.observation.frequency:.3f}.h5".replace(
+                    " ", ""
+                )
             )
         else:
             filename = Path(filename)
 
+        if direc is not None:
+            filename = Path(direc) / filename
+
         logger.info(f"Writing sensitivies to '{filename}'")
         with h5py.File(filename, "w") as fl:
-
             # TODO: We should be careful to try and write everything into this file
             # i.e. all the parameters etc.
 
@@ -636,11 +611,9 @@ class PowerSpectrum(Sensitivity):
                 fl[k] = v
                 fl[k.replace("noise", "snr")] = self.delta_squared / v
 
-            fl["k"] = self.k1d.to("1/Mpc", with_H0(config.COSMO.H0)).value
+            fl["k"] = self.k1d.to("1/Mpc", with_H0(self.cosmo.H0)).value
             fl["delta_squared"] = self.delta_squared
 
-            fl.attrs["k_min"] = self.k_min
-            fl.attrs["k_max"] = self.k_max
             fl.attrs["total_snr"] = self.calculate_significance()
             fl.attrs["foreground_model"] = self.foreground_model
             fl.attrs["horizon_buffer"] = self.horizon_buffer
@@ -660,8 +633,8 @@ class PowerSpectrum(Sensitivity):
             plt.plot(self.k1d, value, label=key)
             plt.xscale("log")
             plt.yscale("log")
-            plt.xlabel("k [1/Mpc]")
-            plt.ylabel(r"$\Delta^2_N \  [{\rm mK}^2/{\rm Mpc}^3$")
+            plt.xlabel("k [h/Mpc]")
+            plt.ylabel(r"$\Delta^2_N \  [{\rm mK}^2$")
             plt.legend()
             plt.title(f"z={conv.f2z(self.observation.frequency):.2f}")
 

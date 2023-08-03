@@ -6,6 +6,7 @@ Contents
    :maxdepth: 2
 
    tutorials
+   faqs
    reference/index
    contributing
    authors

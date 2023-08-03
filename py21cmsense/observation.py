@@ -5,11 +5,14 @@ import attr
 import collections
 import numpy as np
 from astropy import units as un
+from astropy.cosmology import LambdaCDM, Planck15
 from astropy.io.misc import yaml
-from attr import converters as cnv
 from attr import validators as vld
-from cached_property import cached_property
+from collections import defaultdict
+from functools import cached_property
+from hickleable import hickleable
 from os import path
+from typing import Any
 
 from . import _utils as ut
 from . import conversions as conv
@@ -17,7 +20,8 @@ from . import observatory as obs
 from . import types as tp
 
 
-@attr.s(kw_only=True, frozen=True)
+@hickleable(evaluate_cached_properties=True)
+@attr.s(kw_only=True)
 class Observation:
     """
     A class defining an interferometric Observation.
@@ -76,6 +80,12 @@ class Observation:
     tsky_ref_freq : float or Quantity
         Frequency at which the foreground model is equal to `tsky_amplitude`.
         See `spectral_index`. Default assumed to be in MHz.
+    use_approximate_cosmo : bool
+        Whether to use approximate cosmological conversion factors. Doing so will give
+        the same results as the original 21cmSense code, but non-approximate versions
+        that use astropy are preferred.
+    cosmo : LambdaCDM
+        An astropy cosmology object to use.
     """
 
     observatory: obs.Observatory = attr.ib(validator=vld.instance_of(obs.Observatory))
@@ -121,11 +131,8 @@ class Observation:
         validator=ut.nonnegative,
     )
     tsky_ref_freq: tp.Frequency = attr.ib(default=150 * un.MHz, validator=ut.positive)
-
-    # TODO: there should be validation on this, but it's a bit tricky, because
-    # the validation depends on properties of the observatory class.
-    # This is here to make it easier to create a fully-specified class from file
-    _uv_cov = attr.ib(default=None)
+    use_approximate_cosmo: bool = attr.ib(default=False, converter=bool)
+    cosmo: LambdaCDM = attr.ib(default=Planck15, converter=Planck15.from_format)
 
     @classmethod
     def from_yaml(cls, yaml_file):
@@ -151,6 +158,19 @@ class Observation:
 
         observatory = obs.Observatory.from_yaml(data.pop("observatory"))
         return cls(observatory=observatory, **data)
+
+    def __gethstate__(self) -> dict[str, Any]:
+        """Get the hickle state."""
+        d = attr.asdict(self, recurse=False)
+        d["cosmo"] = d["cosmo"].to_format("mapping")
+        del d["cosmo"]["cosmology"]  # The class.
+        return d
+
+    def __sethstate__(self, d: dict[str, Any]) -> None:
+        """Set the hickle state."""
+        d["cosmo"]["cosmology"] = type(Planck15)
+        d["cosmo"] = Planck15.from_format(d["cosmo"])
+        self.__dict__.update(d)
 
     @obs_duration.validator
     def _obs_duration_vld(self, att, val):
@@ -192,6 +212,19 @@ class Observation:
             bl_min=self.bl_min, bl_max=self.bl_max, ndecimals=self.redundancy_tol
         )
 
+    def __getstate__(self):
+        """Get state so that defaultdict is not used."""
+        d = dict(self.__dict__.items())
+        if "baseline_groups" in d:
+            d["baseline_groups"] = dict(d["baseline_groups"])
+        return d
+
+    def __setstate__(self, state):
+        """Set state so that defaultdict is restored."""
+        if "baseline_groups" in state:
+            state["baseline_groups"] = defaultdict(list, state["baseline_groups"])
+        self.__dict__.update(state)
+
     @cached_property
     def baseline_group_coords(self) -> un.Quantity[un.m]:
         """Co-ordinates of baseline groups in metres."""
@@ -209,14 +242,12 @@ class Observation:
 
     @cached_property
     def uv_coverage(self) -> np.ndarray:
+        # sourcery skip: assign-if-exp, swap-if-expression
         """A 2D array specifying the effective number of baselines in a grid of UV.
 
         Defined after earth rotation synthesis for a particular LST bin.
         The u-values on each side of the grid are given by :func:`ugrid`.
         """
-        if self._uv_cov is not None:
-            return self._uv_cov
-
         if not self.coherent:
             fnc = self.observatory.grid_baselines_incoherent
         else:
@@ -274,7 +305,12 @@ class Observation:
 
         Order of the values is the same as `fftfreq` (i.e. zero-first)
         """
-        return conv.dk_deta(self.redshift) * self.eta
+        return (
+            conv.dk_deta(
+                self.redshift, self.cosmo, approximate=self.use_approximate_cosmo
+            )
+            * self.eta
+        )
 
     @cached_property
     def total_integration_time(self) -> un.Quantity[un.s]:
@@ -317,12 +353,3 @@ class Observation:
     def clone(self, **kwargs) -> Observation:
         """Create a clone of this instance, with arbitrary changes to parameters."""
         return attr.evolve(self, **kwargs)
-
-    def __getstate__(self):
-        """Get the pickelable state of the instance."""
-        # This is defined so that when writing out a pickled version of the
-        # class, the method which actually "does stuff" (i.e. uv_coverage) is run
-        # and its output is saved in the pickle.
-        d = self.__dict__
-        d["uv_cov"] = self.uv_coverage
-        return d

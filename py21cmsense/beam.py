@@ -5,14 +5,24 @@ import attr
 from abc import ABCMeta, abstractmethod, abstractproperty
 from astropy import constants as cnst
 from astropy import units as un
+from hickleable import hickleable
 
 from . import _utils as ut
 from . import types as tp
 
 
-@attr.s(frozen=True)
+@hickleable(evaluate_cached_properties=True)
+@attr.s
 class PrimaryBeam(metaclass=ABCMeta):
-    """A Base class defining a Primary Beam and the methods it requires to define."""
+    """A Base class defining a Primary Beam and the methods it requires to define.
+
+    Required methods on subclasses are :meth:`area`, :meth:`width`, :meth:`first_null`,
+    :meth:`sq_area` and :meth:`uv_resolution`..
+
+    Note that 21cmSense currently only uses the beam width as a means to calculate
+    the beam-crossing time, so precise shape is not very important. For that reason,
+    it is not very important to implement beam sub-classes.
+    """
 
     frequency: tp.Frequency = attr.ib(
         validator=(tp.vld_physical_type("frequency"), ut.positive),
@@ -60,10 +70,9 @@ class PrimaryBeam(metaclass=ABCMeta):
         pass
 
     @classmethod
-    @abstractmethod
     def from_uvbeam(cls) -> PrimaryBeam:
         """Generate the beam object from a :class:`pyuvdata.UVBeam` object."""
-        pass
+        raise NotImplementedError()
 
 
 @attr.s(frozen=True)
@@ -84,6 +93,11 @@ class GaussianBeam(PrimaryBeam):
     dish_size: tp.Length = attr.ib(
         validator=(tp.vld_physical_type("length"), ut.positive)
     )
+
+    @property
+    def wavelength(self) -> un.Quantity[un.m]:
+        """The wavelength of the observation."""
+        return (cnst.c / self.frequency).to("m")
 
     @property
     def dish_size_in_lambda(self) -> float:
