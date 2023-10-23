@@ -4,28 +4,80 @@ Developer: Jonathan Pober (jpober <at> uw <dot> edu).
 
 ===============================================================================
 
+This code has been modified by Pallav Chanda (pallav16 <at> iiserb <dot> ac <dot> in) during a summer internship at IIT Indore under the guidance of Abhirup Datta (abhirup <dot> datta <at> iiti <dot> ac <dot> in) in Summer 2019.
+
+The work involves understanding the code, upgrading the dependencies, increasing its efficiency, adding new funtions and more. Please read project_report.pdf to understand how to run the code. It also contains more details about the new fuctions and the changes.
+
+DO THE FOLLOWING TO RUN:
+
+python fast_mk_array_file.py -C hera127
+This generates an array file for calc_sense. Change calibration file as needed from calibration_files folder (DO NOT include folder_name and .py, eg. mwa_compact replaces hera127 for MWA Compact).
+
+python calc_sense.py [*.npz]
+Calculates sensitivity
+([*.npz] is name of generated array file from fast_mk_array_file.py)
+(Result stored in another array file)
+
+python plot_sense.py [*.npz]
+Image of the calculated sensitivity and saves a .csv file for the same.
+([*.npz] is name of earlier generated array file from calc_sense.py)
+
+Please direct any Questions, comments, or feedback about the edits to pallav16 <at> iiserb <dot> ac <dot> in.
+
+===============================================================================
+
 Dependencies:
 
-numpy
-scipy
-aipy (https://github.com/AaronParsons/aipy)
+Python 2
+
+numpy (Tested on v1.16.6)
+scipy (Tested on v1.2.3)
+aipy (https://github.com/AaronParsons/aipy) (Tested on v3.0.1)
+healpy (Tested on v1.13.0)
 
 ===============================================================================
 
 There are two main code pieces: mk_array_file.py and calc_sense.py.  The array files produced by mk_array_file are the inputs to calc_sense.py.  The inputs to mk_array_file.py are calibration files, which are also python scripts, but not executable.  Each of these components will be described in turn.
 
+
 calibration files:
 
-These files will contain all the information about the array you are trying to calculate sensitivities for.  Most importantly, they contain the positions of all the antennas, but also information about the antenna size and system temperature.  An example calibration file for use with this package has been included: hera127.py.  To modify for other arrays, you should only need to change the values in the "ARRAY SPECIFIC PARAMETERS" section.
+These files will contain all the information about the array you are trying to calculate sensitivities for.  Most importantly, they contain the positions of all the antennas, but also information about the antenna size and system temperature.  Few calibration files have been included in the folder calibration_files for use with this package.  To modify for other arrays, you should only need to change the values in the "ARRAY SPECIFIC PARAMETERS" section.
+[Edits by Pallav Chanda: Added calibration files for MWA Compact Baseline, MWA Long Baseline, SKA and VLA arrays.]
+
 
 mk_array_file.py:
 
 This code takes calibration files as input (note that when calling a calibration file from the command line, one needs to omit the '.py' on the end), and returns a .npz file that can be read by calc_sense.py.  As it stands, this code should require no user modification for a drift scan with any antenna array.  For a tracked scan, the opts.track keyword should be set to the length of the track in hours.  Note that no correction is made for the dipole beam of phased array tiles while tracking.  Therefore, this calculation will break down for very long tracks.  The opts.bl_max keyword can also be specified to set a maximum size of the uv plane simulated (by default the longest baseline in the array is always included).  This can be useful for speeding up calculations where outrigger antennas greatly increase the size of the uv plane but provide little EoR sensitivity.
+[Edits by Pallav Chanda: Upgraded dependencies and minor changes.]
 
-calc_sense.py: 
 
-This is the main portion of the package.  To run with defaults, it should only need an array file as input.  Through the command line, the user can change the foreground avoidance/subtraction model, the observing frequency, the epoch of reionization model (which is required to calculate sample variance), and the total observing time.   A redshift 9.5 ~50% ionization model produced by 21cmFAST has been included.  The code can natively handle any power spectrum output from 21cmFAST, but should be easily modifiable to include other models.  Since the calculated sensitivities are for a single frequency, one should change the observing frequency if one uses a power spectrum from a redshift other than the default (z = 9.5).  Changing more detailed parameters, like the sky temperature model, will require editing of the code itself.  The code also now contains the opts.no_ns option,
-which excludes the u = 0 column of the uv plane; this effectively removes north/south oriented baselines from the sensitivity ccalculation, which can be corrupted by systematics due to their low fringe rate.
+fast_mk_array_file.py:
+[Added by Pallav Chanda]
+
+Implements 3-D arrays for storing data and also a few function definitions in mk_array_file.py so as to speed up the code by as much as 10-12% while consuming 4-6 times the memory. The user can choose to use it depending on machine configuration.
+
+
+calc_sense.py:
+
+This is the main portion of the package.  To run with defaults, it should only need an array file as input.  Through the command line, the user can change the foreground avoidance/subtraction model, the observing frequency, the epoch of reionization model (which is required to calculate sample variance), and the total observing time.   A redshift 9.5 ~50% ionization model produced by 21cmFAST has been included.  The code can natively handle any power spectrum output from 21cmFAST, but should be easily modifiable to include other models.  Since the calculated sensitivities are for a single frequency, one should change the observing frequency if one uses a power spectrum from a redshift other than the default (z = 9.5).  Changing more detailed parameters, like the sky temperature model, will require editing of the code itself.  The code also now contains the opts.no_ns option, which excludes the u = 0 column of the uv plane; this effectively removes north/south oriented baselines from the sensitivity ccalculation, which can be corrupted by systematics due to their low fringe rate.
+[Edits by Pallav Chanda: Changed system, antenna temperature model and minor changes.]
+
+
+calc_sense_mcquinn.py
+[Written by Pallav Chanda, available in main-pallav branch]
+
+This code modifies calc_sense.py to implement formulae from McQuinn (2008). Please check main-pallav branch for further details.
+
+
+plot_sense.py:
+[Added by Pallav Chanda]
+
+Plots the calculated sensitivity and saves a CSV file for the same.  Code doesn't automatically name files according to input. Do rename both output files manually or it will get replaced in the next run for plot_sense.py
+
+
+[Further edits by Pallav Chanda: Solved various dependencies. Updated README with dependencies. Few files sorted for better understanding and codes modified accordingly. Added instructions to use the code in README.]
+
 
 ===========================================================================
 
@@ -59,4 +111,4 @@ noise_interp2d:
 
 
 
-Questions, comments, or feedback should be directed to jpober <at> uw <dot> edu.If you use this code in any of your work, please acknowledge Pober et al. 2013AJ....145...65P and Pober et al. 2014ApJ...782...66P and provide a link to this repository.
+Questions, comments, or feedback should be directed to jpober <at> uw <dot> edu. If you use this code in any of your work, please acknowledge Pober et al. 2013AJ....145...65P and Pober et al. 2014ApJ...782...66P and provide a link to this repository.
